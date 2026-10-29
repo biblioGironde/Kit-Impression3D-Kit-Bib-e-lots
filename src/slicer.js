@@ -8,8 +8,7 @@
   'use strict';
   const CL = global.ClipperLib || (typeof require !== 'undefined' ? require('clipper-lib') : null);
   const SC = 1000;                       // 1 mm = 1000 unités Clipper (µm)
-  const FIL_D = 1.75;
-  const FIL_AREA = Math.PI * (FIL_D / 2) ** 2;
+  const FIL_D = 1.75;                    // diamètre par défaut (profil.filament sinon)
   const PLA_DENSITY = 1.24;              // g/cm3
 
   /* Profils des imprimantes — à ajuster si besoin (voir README).
@@ -107,6 +106,41 @@
         'M84 ; moteurs relâchés'
       ].join('\n')
     }
+  };
+  PROFILES.s7 = {
+    id: 's7',
+    name: 'Ultimaker S7',
+    kind: 'cartesian',
+    flavor: 'Griffin',      // G-code Ultimaker : l'en-tête décrit chauffe et matériau
+    bed: { shape: 'rect', w: 330, h: 240, margin: 8 },  // 330 × 240 mm (impression simple extrusion)
+    origin: [165, 120],     // origine (0, 0) dans le coin avant gauche — à valider
+    maxHeight: 290,         // 300 mm annoncés, marge de sécurité
+    filament: 2.85,         // les Ultimaker utilisent du filament 2,85 mm
+    nozzle: 0.4,
+    lineWidth: 0.4,
+    firstLayer: 0.27,
+    firstLayerWidth: 0.4,
+    temp: 210,
+    bedTemp: 60,
+    speeds: { first: 20, outer: 30, inner: 45, infill: 60, solid: 40, skirt: 25, travel: 150 },
+    retract: { length: 6.5, speed: 25, minTravel: 2 },   // à valider (Bowden 2,85 mm)
+    skirt: { distance: 4, loops: 2 },
+    sdFile: 'atelier.gcode',
+    media: 'usb',           // clé USB à l'avant de l'imprimante
+    usbSerial: false,       // pas de pilotage par câble depuis l'ordinateur
+    baud: 0,
+    startGcode: [
+      'T0 ; extrudeur 1',
+      'M82 ; extrusion absolue',
+      'G92 E0',
+      'M190 S{bed} ; plateau',
+      'M109 S{temp} ; buse'
+    ].join('\n'),
+    endGcode: [
+      'M107 ; arrêt ventilateur',
+      'M104 S0 ; arrêt chauffe buse',
+      'M140 S0 ; arrêt chauffe plateau'
+    ].join('\n')
   };
   const MACHINE = PROFILES.neva;
 
@@ -411,12 +445,29 @@
     // passe 2 : parois, remplissage, G-code
     const em = new Emitter(M);
     const shellN = Math.max(2, Math.round(Q.shell / Q.layer));
-    const fillArea = Math.PI * (FIL_D / 2) ** 2;
+    const filD = M.filament || FIL_D;
+    const fillArea = Math.PI * (filD / 2) ** 2;
     const epmFor = (width, h) => ((width - h) * h + Math.PI * (h / 2) ** 2) / fillArea;
 
     const header = [];
-    em.raw(';FLAVOR:Marlin');
-    em.raw(';Généré par Atelier Neva pour ' + M.name);
+    if (M.flavor === 'Griffin') {
+      // en-tête lu par le firmware Ultimaker (valeurs complétées en fin de découpe)
+      [';START_OF_HEADER', ';HEADER_VERSION:0.1', ';FLAVOR:Griffin',
+       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.1', ';GENERATOR.BUILD_DATE:2026-10-29',
+       ';TARGET_MACHINE.NAME:' + M.name,
+       ';EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:' + M.temp,
+       ';EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:{{VOL}}',
+       ';EXTRUDER_TRAIN.0.NOZZLE.DIAMETER:' + M.nozzle,
+       ';EXTRUDER_TRAIN.0.NOZZLE.NAME:AA ' + M.nozzle,
+       ';BUILD_PLATE.INITIAL_TEMPERATURE:' + (M.bedTemp || 0),
+       ';PRINT.TIME:{{TIME}}', ';PRINT.GROUPS:1',
+       ';PRINT.SIZE.MIN.X:{{MINX}}', ';PRINT.SIZE.MIN.Y:{{MINY}}', ';PRINT.SIZE.MIN.Z:0.27',
+       ';PRINT.SIZE.MAX.X:{{MAXX}}', ';PRINT.SIZE.MAX.Y:{{MAXY}}', ';PRINT.SIZE.MAX.Z:{{MAXZ}}',
+       ';END_OF_HEADER'].forEach(l => em.raw(l));
+    } else {
+      em.raw(';FLAVOR:Marlin');
+    }
+    em.raw(';Généré par Atelier Impression 3D pour ' + M.name);
     em.raw(';Réglage : ' + Q.label + ' — couche ' + Q.layer + ' mm, ' + Q.walls + ' parois, remplissage ' + Math.round(Q.infill * 100) + ' %');
     em.raw(';TIME:{{TIME}}');
     em.raw(';Filament used: {{FIL}}m');
@@ -514,9 +565,17 @@
 
     const seconds = Math.round(em.time * 1.12); // marge accélérations
     const meters = em.filament / 1000;
-    const grams = em.filament * FIL_AREA / 1000 * PLA_DENSITY;
+    const grams = em.filament * fillArea / 1000 * PLA_DENSITY;
     let gcode = em.out.join('\n') + '\n';
-    gcode = gcode.replace('{{TIME}}', seconds).replace('{{FIL}}', meters.toFixed(2));
+    gcode = gcode.replace(/\{\{TIME\}\}/g, seconds).replace('{{FIL}}', meters.toFixed(2));
+    if (M.flavor === 'Griffin') {
+      // emprise réelle des trajets, en coordonnées machine
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < em.pv.length; i += 3) { const x = em.pv[i] + em.ox, y = em.pv[i + 1] + em.oy; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      const f = n => (Math.round(n * 1000) / 1000).toString();
+      gcode = gcode.replace('{{VOL}}', Math.round(em.filament * fillArea)).replace('{{MINX}}', f(x0)).replace('{{MINY}}', f(y0))
+        .replace('{{MAXX}}', f(x1)).replace('{{MAXY}}', f(y1)).replace('{{MAXZ}}', f(zTop));
+    }
     onProgress(1, 'Terminé');
     return {
       gcode,

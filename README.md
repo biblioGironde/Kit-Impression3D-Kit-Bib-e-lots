@@ -4,7 +4,7 @@
 
 ![Choix des modèles « Objets en Bib » placés automatiquement sur le plateau de la Vyper](docs/capture.png)
 
-Application web pour imprimer en 3D sans connaître le slicing, sur **Dagoma Neva** ou **Anycubic Vyper**.
+Application web pour imprimer en 3D sans connaître le slicing, sur **Dagoma Neva**, **Anycubic Vyper** ou **Ultimaker S7**.
 Au lancement, l'usager touche l'imprimante posée devant lui ; l'atelier s'adapte à son plateau et à son mode d'emploi.
 Tout se passe dans le navigateur, sans serveur.
 
@@ -64,18 +64,22 @@ Pour tester un STL sans modifier le code : **Réglages animateur → Tester un f
 
 ## Imprimantes prises en charge
 
-| | Dagoma Neva | Anycubic Vyper |
-|---|---|---|
-| Type | delta | cartésienne |
-| Plateau | rond Ø 180 mm | 245 × 245 mm, chauffant |
-| Hauteur utile retenue | 190 mm | 250 mm |
-| Lancement depuis la carte | un appui sur le bouton | choix du fichier sur l'écran tactile |
-| Fichier sur la carte | `dagoma0.g` | `atelier.gcode` |
+| | Dagoma Neva | Anycubic Vyper | Ultimaker S7 |
+|---|---|---|---|
+| Type | delta | cartésienne | cartésienne (boîtier fermé) |
+| Plateau | rond Ø 180 mm | 245 × 245 mm, chauffant | 330 × 240 mm, chauffant |
+| Hauteur utile retenue | 190 mm | 250 mm | 290 mm |
+| Filament | 1,75 mm | 1,75 mm | **2,85 mm** |
+| Envoi | carte SD ou câble USB | carte SD ou câble USB | clé USB uniquement |
+| Lancement | un appui sur le bouton | écran tactile | écran tactile |
+| Fichier | `dagoma0.g` | `atelier.gcode` | `atelier.gcode` (G-code Griffin) |
+
+Pour changer d'imprimante en cours de séance : cliquer sur **Changer**, à côté du nom de l'imprimante dans l'en-tête. L'écran d'accueil se rouvre (bouton « Retour à l'atelier » ou touche Échap pour annuler).
 
 Les profils sont dans `src/slicer.js` (`PROFILES`). Les réglages animateur sont enregistrés séparément pour chaque imprimante.
 
 Pour remplacer les dessins de l'écran d'accueil par des photos de vos machines, ajoutez des images détourées sur fond transparent :
-`imprimantes/neva.png` et `imprimantes/vyper.png`. Elles sont utilisées automatiquement si elles existent.
+`imprimantes/neva.png`, `imprimantes/vyper.png` et `imprimantes/s7.png`. Elles sont utilisées automatiquement si elles existent.
 
 ## Points à valider sur l'Anycubic Vyper
 
@@ -88,6 +92,20 @@ Le profil Vyper n'a pas encore été testé sur la machine. Vérifiez ces valeur
 | Vitesse du port USB | 115200 bauds | Réglages animateur |
 | Températures PLA | buse 205 °C, plateau 60 °C | Réglages animateur |
 | Étapes sur l'écran tactile | « Imprimer » → choix du fichier → confirmer | texte du guide dans `src/app.js` |
+
+## Points à valider sur l'Ultimaker S7
+
+Le profil S7 n'a pas encore été testé sur la machine. Points importants :
+
+| Réglage | Valeur actuelle | Où le changer |
+|---|---|---|
+| Format du fichier | G-code « Griffin » avec un en-tête (températures, durée, volume de matériau, emprise) | `src/slicer.js` (en-tête Griffin) |
+| Matériau | l'en-tête n'indique pas l'identifiant du matériau : l'imprimante peut demander de confirmer le PLA chargé | à confirmer sur l'écran |
+| Origine des coordonnées | coin avant gauche, plateau 330 × 240 mm | `PROFILES.s7.origin` dans `src/slicer.js` |
+| Rétraction | 6,5 mm à 25 mm/s | `PROFILES.s7.retract` |
+| Températures PLA | buse 210 °C, plateau 60 °C | Réglages animateur |
+
+Si l'imprimante refuse le fichier, comparer avec l'en-tête d'un fichier produit par UltiMaker Cura pour la S7.
 
 ## Points à valider sur votre Neva
 

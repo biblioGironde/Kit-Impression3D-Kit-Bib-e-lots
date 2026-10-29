@@ -9,8 +9,16 @@
   /* fiche affichée pour chaque imprimante (écran d'accueil, textes) */
   const PRINTERS = {
     neva:  { short: 'Neva',  marque: 'Dagoma',   plateau: 'Plateau rond Ø 180 mm', infos: ['Imprimante delta', 'Hauteur max. 190 mm', 'Un seul bouton'] },
-    vyper: { short: 'Vyper', marque: 'Anycubic', plateau: 'Plateau 245 × 245 mm', infos: ['Plateau chauffant', 'Hauteur max. 250 mm', 'Écran tactile'] }
+    vyper: { short: 'Vyper', marque: 'Anycubic', plateau: 'Plateau 245 × 245 mm', infos: ['Plateau chauffant', 'Hauteur max. 250 mm', 'Écran tactile'], aTester: true },
+    s7:    { short: 'S7',    marque: 'Ultimaker', plateau: 'Plateau 330 × 240 mm', infos: ['Filament 2,85 mm', 'Hauteur max. 290 mm', 'Clé USB et écran tactile'], aTester: true }
   };
+  /* support amovible : carte SD (Neva, Vyper) ou clé USB (S7) */
+  const MED = () => M.media === 'usb'
+    ? { nom: 'Clé USB', la: 'la clé USB', court: 'la clé', dans: 'sur la clé' }
+    : { nom: 'Carte SD', la: 'la carte SD', court: 'la carte', dans: 'sur la carte' };
+  /* pilotage par câble possible : navigateur compatible ET imprimante qui l'accepte */
+  const usbOk = () => USB.ok && M.usbSerial !== false;
+  const usbWhy = () => M.usbSerial === false ? `${UI().marque} ${UI().short} : l’impression se lance depuis ${MED().la}, pas par câble.` : USB.why;
   const UI = () => PRINTERS[M.id];
   const laMachine = () => 'la ' + UI().short;
   const PRESETS = NevaSlicer.PRESETS;
@@ -543,8 +551,8 @@
     const n = S.layout.placed.length;
     if (S.step === 1) sum = n ? `${n} pièce${n > 1 ? 's' : ''} sur le plateau` : 'Ajoutez au moins un modèle';
     if (S.step === 2) sum = S.slicing ? 'Calcul en cours…' : S.result ? `${n} pièce${n > 1 ? 's' : ''} · ≈ ${duree(S.result.stats.seconds)} · ${fr(S.result.stats.grams)} g` : '';
-    if (S.step === 3) sum = S.mode ? (S.mode === 'sd' ? 'Envoi par carte SD' : 'Envoi par câble USB') : 'Choisissez un mode d’envoi';
-    if (S.step === 4) { label = 'Nouvelle impression'; ok = true; sum = S.mode === 'sd' ? 'Guide carte SD' : 'Guide câble USB'; }
+    if (S.step === 3) sum = S.mode ? (S.mode === 'sd' ? 'Envoi par ' + MED().la : 'Envoi par câble USB') : 'Choisissez un mode d’envoi';
+    if (S.step === 4) { label = 'Nouvelle impression'; ok = true; sum = S.mode === 'sd' ? 'Guide ' + MED().la : 'Guide câble USB'; }
     next.textContent = label;
     next.disabled = !ok;
     $('#summary').textContent = sum;
@@ -676,12 +684,12 @@
         <button type="button" class="choice" role="radio" aria-checked="${S.mode === 'sd'}" data-mode="sd">
           ${ILLO.sdChoice()}
           <span>
-            <h3><span class="letter">A</span> Carte SD <span class="badge ok">conseillé</span></h3>
-            <p>On copie le fichier sur la carte, puis ${laMachine()} imprime seule.</p>
+            <h3><span class="letter">A</span> ${MED().nom} <span class="badge ok">conseillé</span></h3>
+            <p>On copie le fichier ${MED().dans}, puis ${laMachine()} imprime seule.</p>
             <ul><li>L’ordinateur peut être éteint pendant l’impression.</li><li>Fonctionne depuis n’importe quel ordinateur.</li></ul>
           </span>
         </button>`;
-    const usb = USB.ok ? `
+    const usb = usbOk() ? `
         <button type="button" class="choice" role="radio" aria-checked="${S.mode === 'usb'}" data-mode="usb">
           ${ILLO.usbChoice()}
           <span>
@@ -694,12 +702,12 @@
       <div>
         <div class="kicker">Étape 3 sur 4</div>
         <h2>Comment envoyer l’impression ?</h2>
-        <p class="lead">${USB.ok
-          ? 'Les deux méthodes donnent le même résultat. La carte SD est la plus simple et libère l’ordinateur.'
-          : 'Avec ce navigateur, l’impression se lance avec la carte SD.'}</p>
+        <p class="lead">${usbOk()
+          ? `Les deux méthodes donnent le même résultat. ${MED().la.charAt(0).toUpperCase() + MED().la.slice(1)} est la plus simple et libère l’ordinateur.`
+          : `L’impression se lance avec ${MED().la}.`}</p>
       </div>
       <div class="choices" role="radiogroup" aria-label="Mode d’envoi">${sd}${usb}</div>
-      ${USB.ok ? '' : `<p class="note">${esc(USB.why)}</p>`}`;
+      ${usbOk() ? '' : `<p class="note">${esc(usbWhy())}</p>`}`;
   }
 
   /* ----- étape 4 ----- */
@@ -713,18 +721,29 @@
           body: `<p>Le fichier <code>${esc(file)}</code> contient toutes les instructions pour ${laMachine()}.</p>
             ${isArtifact ? `<p class="note">Dans cet aperçu, le fichier arrive sous le nom <code>${esc(file)}.txt</code> : renommez-le en <code>${esc(file)}</code> avant de le copier.</p>` : ''}
             <div class="row"><button type="button" class="btn primary" data-act="download">Télécharger ${esc(file)}</button>${S.downloaded ? '<span class="badge ok">téléchargé</span>' : ''}</div>` },
-        { illo: ILLO.cardIn(), title: 'Brancher la carte sur l’ordinateur',
-          body: `<p>Glissez la carte mémoire fournie avec ${laMachine()} dans son lecteur, puis branchez le lecteur sur l’ordinateur.</p>` },
-        { illo: ILLO.copy(file), title: 'Copier le fichier sur la carte',
-          body: `<p>Ouvrez la carte dans l’explorateur de fichiers. Copiez <code>${esc(file)}</code> directement dans la carte, pas dans un dossier.</p><p>S’il y a déjà un fichier <code>${esc(file)}</code>, choisissez « Remplacer ».</p>` },
-        { illo: ILLO.eject(), title: 'Éjecter la carte',
-          body: `<p>Sous Windows : clic droit sur la carte, puis « Éjecter ». Sur Mac : faites glisser la carte vers la corbeille. Attendez le message qui confirme qu’on peut la retirer.</p>` },
-        { illo: ILLO.cardToPrinter(), title: `Insérer la carte dans ${laMachine()}`,
-          body: `<p>Retirez la carte du lecteur et insérez-la dans le lecteur de carte de l’imprimante.</p>` },
+        M.media === 'usb'
+          ? { illo: ILLO.keyIn(), title: 'Brancher la clé USB sur l’ordinateur',
+              body: `<p>Branchez la clé USB fournie avec ${laMachine()} sur un port USB de l’ordinateur.</p>` }
+          : { illo: ILLO.cardIn(), title: 'Brancher la carte sur l’ordinateur',
+              body: `<p>Glissez la carte mémoire fournie avec ${laMachine()} dans son lecteur, puis branchez le lecteur sur l’ordinateur.</p>` },
+        { illo: ILLO.copy(file), title: `Copier le fichier ${MED().dans}`,
+          body: `<p>Ouvrez ${MED().court} dans l’explorateur de fichiers. Copiez <code>${esc(file)}</code> directement à la racine, pas dans un dossier.</p><p>S’il y a déjà un fichier <code>${esc(file)}</code>, choisissez « Remplacer ».</p>` },
+        { illo: ILLO.eject(), title: `Éjecter ${MED().court}`,
+          body: `<p>Sous Windows : clic droit sur ${MED().court}, puis « Éjecter ». Sur Mac : faites-la glisser vers la corbeille. Attendez le message qui confirme qu’on peut la retirer.</p>` },
+        M.media === 'usb'
+          ? { illo: ILLO.cardToPrinter(), title: `Brancher la clé sur ${laMachine()}`,
+              body: `<p>Branchez la clé USB sur le port USB situé à l’avant de l’imprimante.</p>` }
+          : { illo: ILLO.cardToPrinter(), title: `Insérer la carte dans ${laMachine()}`,
+              body: `<p>Retirez la carte du lecteur et insérez-la dans le lecteur de carte de l’imprimante.</p>` },
         { illo: ILLO.prepare(), title: 'Préparer l’imprimante',
-          body: `<p>Vérifiez que le filament est chargé et que le plateau est propre et vide : aucun reste d’impression.</p>` }
+          body: M.filament === 2.85
+            ? `<p>Vérifiez que du <strong>PLA 2,85 mm</strong> est chargé dans l’extrudeur 1 et que le plateau est propre et vide.</p>`
+            : `<p>Vérifiez que le filament est chargé et que le plateau est propre et vide : aucun reste d’impression.</p>` }
       ];
-      const lancer = M.id === 'vyper'
+      const lancer = M.id === 's7'
+        ? { illo: ILLO.screen(file), title: 'Lancer depuis l’écran tactile',
+            body: `<p>Sur l’écran de la S7, ouvrez la clé USB, choisissez <code>${esc(file)}</code>, puis lancez l’impression.</p><p>Si l’imprimante signale une différence de matériau ou de configuration, vérifiez que du PLA est chargé, puis confirmez. Elle chauffe et se prépare seule avant d’imprimer.</p>` }
+        : M.id === 'vyper'
         ? { illo: ILLO.screen(file), title: 'Lancer depuis l’écran tactile',
             body: `<p>Allumez la Vyper. Sur l’écran, touchez <strong>Imprimer</strong>, choisissez <code>${esc(file)}</code>, puis confirmez.</p><p>Le plateau chauffe d’abord, puis la buse : comptez quelques minutes avant le début de l’impression.</p>` }
         : { illo: ILLO.button(), title: 'Appuyer sur le bouton',
@@ -735,7 +754,7 @@
           : `<p>Comptez environ <strong>${duree(st.seconds)}</strong>. À la fin, la tête remonte. Laissez refroidir quelques minutes, puis décollez les pièces doucement.</p>` };
       return [...commun, lancer, fin];
     }
-    const ser = serialSupport();
+    const ser = { ok: usbOk() };
     const P = PRINTER;
     const conn = P.connected ? '<span class="status on">Imprimante connectée</span>' : P.error ? `<span class="status err">${esc(P.error)}</span>` : '<span class="status">Non connectée</span>';
     return [
@@ -747,7 +766,7 @@
         body: ser.ok
           ? `<p>Cliquez sur « Connecter », puis choisissez le port de l’imprimante dans la fenêtre du navigateur (souvent « USB Serial » ou « Arduino »).</p>
              <div class="row"><button type="button" class="btn primary" data-act="connect" ${P.connected || P.busy ? 'disabled' : ''}>Connecter</button>${conn}</div>`
-          : `<div class="callout">${esc(ser.why)}</div><div class="row"><button type="button" class="btn" data-act="switch-sd">Utiliser la carte SD</button></div>` },
+          : `<div class="callout">${esc(usbWhy())}</div><div class="row"><button type="button" class="btn" data-act="switch-sd">Utiliser ${MED().la}</button></div>` },
       { illo: ILLO.play(), title: 'Lancer l’impression',
         body: `<p>${M.bedTemp ? 'Le plateau puis la buse chauffent' : 'La Neva chauffe et se calibre'} avant de commencer. La température et l’avancement s’affichent ici.</p>
           <div class="row">
@@ -772,7 +791,7 @@
     const g = S.guide;
     return `
       <div>
-        <div class="kicker">Étape 4 sur 4 · ${S.mode === 'sd' ? 'Carte SD' : 'Câble USB'}</div>
+        <div class="kicker">Étape 4 sur 4 · ${S.mode === 'sd' ? MED().nom : 'Câble USB'}</div>
         <h2>Lancez l’impression, pas à pas</h2>
         <p class="lead">Suivez les étapes dans l’ordre et cochez-les au fur et à mesure.</p>
       </div>
@@ -1036,7 +1055,7 @@
     }
     if (d.preset && d.preset !== S.preset) { S.preset = d.preset; invalidateSlice(); renderAll(); runSlice(); }
     if (d.view) { S.view = d.view; S.sel = null; V.highlight(null); V.setMode(S.view); if (S.result) V.showLayer(S.layer); renderOverlay(); }
-    if (d.mode) { S.mode = d.mode === 'usb' && !USB.ok ? 'sd' : d.mode; renderAll(); }
+    if (d.mode) { S.mode = d.mode === 'usb' && !usbOk() ? 'sd' : d.mode; renderAll(); }
     if (d.done) { const i = +d.done; if (S.guide.done.has(i)) { S.guide.done.delete(i); S.guide.current = Math.min(S.guide.current, i); renderPanel(); } else markDone(i); }
     if (d.act === 'show-plate') { S.preview = null; V.showLayout(S.layout); V.framePlate(); renderAll(); }
     if (d.act === 'download') download();
@@ -1070,7 +1089,7 @@
   $('#next').addEventListener('click', () => {
     if (S.step === 4) {
       if (PRINTER.printing) { toast('Attendez la fin de l’impression en cours'); return; }
-      S.basket = new Map(); S.layout = { placed: [], failed: [] }; S.preview = null; S.mode = USB.ok ? null : 'sd'; invalidateSlice();
+      S.basket = new Map(); S.layout = { placed: [], failed: [] }; S.preview = null; S.mode = usbOk() ? null : 'sd'; invalidateSlice();
       S.step = 2; goto(1); return;
     }
     goto(S.step + 1);
@@ -1083,6 +1102,7 @@
     $('#cfgTemp').value = cfg.temp; $('#cfgPrice').value = cfg.price; $('#cfgFile').value = cfg.file;
     $('#cfgBed').value = cfg.bedTemp || 0; $('#bedField').hidden = !M.bedTemp;
     $('#cfgBaud').value = cfg.baud; $('#cfgStart').value = cfg.start;
+    $('#baudField').hidden = M.usbSerial === false;
   }
   $('#openSettings').addEventListener('click', () => { fillSettings(); dlg.showModal(); });
   $('#cfgReset').addEventListener('click', () => { cfg = Object.assign({ price: 25 }, defaultsFor(M)); fillSettings(); });
@@ -1149,7 +1169,15 @@
       <circle class="fp" cx="0" cy="28" r="2.6"/>
       <path class="fa" d="M-26 50 H26 L22 55 H-22 Z"/>
       ${extra}</g>`;
-  const printerArt = (x, y, s) => (M.kind === 'delta' ? neva : vyper)(x, y, s);
+  const boxPrinter = (x, y, s = 1, extra = '') => `<g transform="translate(${x} ${y}) scale(${s})">
+      <rect class="fsoft s" x="-36" y="-10" width="72" height="80" rx="4"/>
+      <rect class="fs s" x="-28" y="-2" width="56" height="54" rx="2"/>
+      <path class="s" d="M-28 14 H28"/><rect class="fs s" x="-6" y="9" width="12" height="10" rx="2"/>
+      <circle class="fp" cx="0" cy="23" r="2.4"/>
+      <path class="fa" d="M-24 44 H24 L22 48 H-22 Z"/>
+      <rect class="fa" x="-10" y="58" width="20" height="7" rx="1.5"/>
+      ${extra}</g>`;
+  const printerArt = (x, y, s) => (M.kind === 'delta' ? neva : M.id === 's7' ? boxPrinter : vyper)(x, y, s);
   const laptop = (x, y) => `<g transform="translate(${x} ${y})"><rect class="fs s" x="0" y="0" width="64" height="40" rx="3"/><path class="s" d="M-8 46 H72 L66 40 H-2 Z"/></g>`;
   const sdCard = (x, y, r = 0) => `<g transform="translate(${x} ${y}) rotate(${r})"><path class="fp" d="M0 0 H14 L18 4 V24 H0 Z"/><path class="s" d="M0 0 H14 L18 4 V24 H0 Z"/><path class="t" d="M4 3 V8 M8 3 V8 M12 3 V8" style="stroke:#fff;opacity:.9"/></g>`;
   const fileIcon = (x, y, label) => `<g transform="translate(${x} ${y})"><path class="fs s" d="M0 0 H18 L26 8 V34 H0 Z"/><path class="t" d="M5 15 H21 M5 21 H21 M5 27 H15"/>${label ? `<text x="13" y="46" text-anchor="middle">${esc(label)}</text>` : ''}</g>`;
@@ -1165,6 +1193,7 @@
     cardToPrinter: () => W(`${printerArt(100, 20, 1)}${sdCard(24, 70)}${arrow('M46 82 H64 M58 76 L64 82 L58 88')}`),
     prepare: () => W(`<circle class="fp" cx="40" cy="56" r="26"/><circle class="s" cx="40" cy="56" r="26"/><circle class="fs s" cx="40" cy="56" r="8"/><path class="s" d="M40 30 C 70 18, 92 30, 112 40"/>${printerArt(124, 20, 0.9)}`),
     button: () => W(`${neva(66, 18, 1)}<circle class="fs s" cx="128" cy="78" r="12"/><circle class="fa" cx="128" cy="78" r="6"/><path class="s" d="M140 98 L132 86 M146 92 L134 84"/><text x="128" y="106" text-anchor="middle">1 appui</text>`),
+    keyIn: () => W(`${laptop(70, 34)}<rect class="fp" x="30" y="58" width="30" height="14" rx="3"/><rect class="fs s" x="60" y="61" width="10" height="8" rx="1"/>${arrow('M64 78 H72')}`),
     screen: (file) => W(`<rect class="fs s" x="34" y="10" width="100" height="78" rx="6"/><rect class="fsoft" x="42" y="18" width="84" height="12" rx="2"/><text x="48" y="27">Imprimer</text><rect class="fa" x="42" y="36" width="84" height="14" rx="2"/><text x="48" y="46" style="fill:var(--accent-ink)">${esc(file)}</text><path class="t" d="M48 60 H110 M48 70 H96"/><path class="s" d="M118 98 L110 84 M126 92 L114 80"/>`),
     collect: () => W(`<ellipse class="fa" cx="84" cy="80" rx="62" ry="10"/><rect class="fp" x="56" y="58" width="18" height="18" rx="2"/><path class="fp" d="M90 76 L100 54 L110 76 Z"/><path class="s" d="M124 64 L104 74"/><rect class="fs s" x="122" y="54" width="30" height="12" rx="3" transform="rotate(-24 137 60)"/><text x="40" y="30">refroidir</text><path class="s" d="M24 16 V34 M24 16 a4 4 0 0 1 8 0 V34" /><circle class="fa" cx="28" cy="38" r="6"/>`),
     cable: () => W(`${laptop(12, 34)}<path class="sa" d="M84 74 C 100 74, 100 92, 118 92"/>${printerArt(132, 20, 0.9)}`),
@@ -1186,6 +1215,16 @@
       <path class="pf" d="M36 236 H204 L196 256 H44 Z"/>
       <rect class="pp" x="108" y="210" width="24" height="14" rx="2"/>
     </svg>`,
+    s7: `<svg viewBox="0 0 280 280" aria-hidden="true" class="pdraw">
+      <path class="pf" d="M46 30 H234 V250 H46 Z"/>
+      <rect class="pf" x="62" y="48" width="156" height="150" rx="6" style="fill:var(--panel)"/>
+      <path class="pl" d="M62 92 H218"/><rect class="pf" x="126" y="80" width="28" height="24" rx="3"/>
+      <path class="pa" d="M134 104 H146 L142 114 H138 Z"/><circle class="pp" cx="140" cy="120" r="4"/>
+      <path class="pb" d="M78 176 H202 L210 186 H70 Z"/>
+      <rect class="pp" x="122" y="160" width="36" height="16" rx="2"/>
+      <rect class="pa" x="112" y="214" width="56" height="22" rx="4"/>
+      <rect class="pp" x="198" y="220" width="16" height="8" rx="2"/>
+    </svg>`,
     vyper: `<svg viewBox="0 0 280 280" aria-hidden="true" class="pdraw">
       <ellipse class="ps" cx="140" cy="28" rx="30" ry="9"/><path class="pl" d="M110 28 V38 M170 28 V38"/>
       <path class="pl" d="M50 44 H230 M58 44 V214 M222 44 V214"/>
@@ -1203,6 +1242,7 @@
       const P = PRINTERS[id], prof = NevaSlicer.PROFILES[id];
       return `<button type="button" class="pcard" data-printer="${id}">
         ${id === last ? '<span class="lastused">Utilisée la dernière fois</span>' : ''}
+        ${P.aTester ? '<span class="atester">Profil à tester</span>' : ''}
         <span class="pimg" data-pimg="${id}">${ART[id]}</span>
         <span class="pname"><small>${esc(P.marque)}</small>${esc(P.short)}</span>
         <span class="pspec">${esc(P.plateau)}</span>
@@ -1216,14 +1256,17 @@
       img.src = `imprimantes/${id}.png`;
     });
   }
+  let printerChosen = false;
   function showSplash() {
     renderSplash();
+    $('#splashBack').hidden = !printerChosen;
     $('#splash').hidden = false;
     const btn = document.querySelector(`[data-printer="${store.last || 'neva'}"]`);
     if (btn) btn.focus();
   }
   function selectPrinter(id) {
     if (PRINTER.printing) { toast('Attendez la fin de l’impression en cours'); return; }
+    printerChosen = true;
     M = NevaSlicer.PROFILES[id];
     store.last = id;
     loadCfg(); saveCfg();
@@ -1237,7 +1280,7 @@
     let cleared = false;
     if (S.layout.failed.length) { S.basket = new Map(); S.layout = { placed: [], failed: [] }; cleared = true; }
     S.preview = null; S.sel = null; S.step = 1;
-    if (!USB.ok) S.mode = 'sd'; else if (S.mode === 'usb') S.mode = null;
+    if (!usbOk()) S.mode = 'sd'; else if (S.mode === 'usb') S.mode = null;
     invalidateSlice();
     V.buildPrinter(); V.applyTheme();
     V.showLayout(S.layout); V.framePlate();
@@ -1250,6 +1293,10 @@
     const b = e.target.closest('[data-printer]');
     if (b) selectPrinter(b.dataset.printer);
     if (e.target.closest('#changePrinter')) showSplash();
+    if (e.target.closest('#splashBack')) $('#splash').hidden = true;
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('#splash').hidden && printerChosen) $('#splash').hidden = true;
   });
 
   /* ---------------- démarrage ---------------- */  /* ---------------- démarrage ---------------- */

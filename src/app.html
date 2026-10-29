@@ -249,6 +249,11 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
 .pname small { font-family: var(--body); font-weight: 700; font-size: 13px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
 .pspec { font-weight: 700; }
 .pinfos { font-size: 13.5px; color: var(--muted); }
+.atester { position: absolute; top: 14px; left: 14px; font-size: 12px; font-weight: 700; color: var(--warn); border: 1px solid currentColor; border-radius: 999px; padding: 2px 9px; }
+.splash-head #splashBack { margin-bottom: 14px; }
+.printer-chip { display: inline-flex; align-items: baseline; gap: 4px; flex-wrap: wrap; border: 0; background: none; padding: 2px 0; font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: left; }
+.printer-chip .chg { font-family: var(--body); font-size: 12px; font-weight: 700; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; margin-left: 4px; }
+.printer-chip:hover .chg { text-decoration-thickness: 2px; }
 .lastused { position: absolute; top: 14px; right: 14px; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; }
 .pdraw .pl, .pdraw .pt { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
 .pdraw .pl { stroke-width: 6; }
@@ -264,8 +269,8 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 10px 16px; border-radius: 9px; font-size: 14px; font-weight: 700; max-width: calc(100vw - 32px); z-index: 20; }
 
 @media (max-width: 1480px) {
-  #changePrinter .txt, #openSettings .txt { display: none; }
-  #changePrinter, #openSettings { padding: 8px 10px; }
+  #openSettings .txt { display: none; }
+  #openSettings { padding: 8px 10px; }
 }
 @media (max-width: 860px) {
   .app { height: auto; min-height: 100%; }
@@ -306,15 +311,11 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
         <circle cx="17" cy="22" r="2.4" fill="var(--pla)"/>
         <ellipse cx="17" cy="29.5" rx="11" ry="2.6" fill="var(--accent)"/>
       </svg>
-      <div><h1><span class="nw">Kit bib-e-lots</span> - <span class="nw">Atelier Impression 3D</span></h1><small><span id="printerName">Dagoma Neva</span> · <span id="printerBed">Plateau rond Ø 180 mm</span></small></div>
+      <div><h1><span class="nw">Kit bib-e-lots</span> - <span class="nw">Atelier Impression 3D</span></h1><button type="button" class="printer-chip" id="changePrinter" aria-haspopup="dialog" title="Changer d’imprimante"><span id="printerName">Dagoma Neva</span> · <span id="printerBed">Plateau rond Ø 180 mm</span> <span class="chg">Changer</span></button></div>
     </div>
     <nav aria-label="Étapes" style="flex:1;min-width:0">
       <ol class="steps" id="steps"></ol>
     </nav>
-    <button class="iconbtn" id="changePrinter" type="button" aria-haspopup="dialog" aria-label="Changer d’imprimante" title="Changer d’imprimante">
-      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 14V3h10v11M3 6h10M6 14V9h4v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-      <span class="txt">Imprimante</span>
-    </button>
     <button class="iconbtn" id="openSettings" type="button" aria-haspopup="dialog" aria-label="Réglages animateur">
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h7M13 4h1M2 12h1M7 12h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
       <span class="txt">Réglages animateur</span>
@@ -340,6 +341,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
 <div class="splash" id="splash" role="dialog" aria-modal="true" aria-labelledby="splashTitle" hidden>
   <div class="splash-inner gutter">
     <div class="splash-head">
+      <button type="button" class="btn small" id="splashBack" hidden>← Retour à l’atelier</button>
       <div class="kicker">Kit bib-e-lots · Atelier Impression 3D</div>
       <h2 id="splashTitle">Quelle imprimante utilisez-vous ?</h2>
       <p class="lead">Touchez l’imprimante posée devant vous. L’atelier s’adapte à son plateau et à son mode d’emploi.</p>
@@ -359,7 +361,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
       <div class="field" id="bedField"><label for="cfgBed">Température du plateau (°C)</label><input id="cfgBed" type="number" min="0" max="110" step="5"></div>
       <div class="field"><label for="cfgPrice">Prix du filament (€/kg)</label><input id="cfgPrice" type="number" min="0" step="1"></div>
       <div class="field"><label for="cfgFile">Nom du fichier sur la carte</label><input id="cfgFile" type="text" spellcheck="false"></div>
-      <div class="field"><label for="cfgBaud">Vitesse du port USB (bauds)</label><select id="cfgBaud"><option>250000</option><option>115200</option></select></div>
+      <div class="field" id="baudField"><label for="cfgBaud">Vitesse du port USB (bauds)</label><select id="cfgBaud"><option>250000</option><option>115200</option></select></div>
     </div>
     <div class="field">
       <label for="cfgStart">G-code de démarrage</label>

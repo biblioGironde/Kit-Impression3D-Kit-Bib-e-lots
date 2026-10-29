@@ -126,20 +126,37 @@
     retract: { length: 6.5, speed: 25, minTravel: 2 },   // à valider (Bowden 2,85 mm)
     skirt: { distance: 4, loops: 2 },
     sdFile: 'atelier.gcode',
+    // identifiant matériau repris du profil PrusaSlicer d'Anson Liu ; d'après l'auteur,
+    // il n'influence pas l'impression (l'imprimante peut demander de confirmer le matériau)
+    materialGuid: '0f12978a-8e3c-4147-b9ca-726d5ed59368',
     media: 'usb',           // clé USB à l'avant de l'imprimante
     usbSerial: false,       // pas de pilotage par câble depuis l'ordinateur
     baud: 0,
+    // G28/G29 ne sont pas reconnus par le firmware Griffin : G280 S1 fait l'origine
+    // et le nivellement sans amorçage automatique, d'où la ligne d'amorçage ensuite.
     startGcode: [
-      'T0 ; extrudeur 1',
-      'M82 ; extrusion absolue',
+      'T0',
+      'M82',
+      'G21',
+      'G90',
+      'M107',
+      'M140 S{bed}',
+      'M104 S{temp}',
+      'G280 S1',
+      'M190 S{bed}',
+      'M109 S{temp}',
       'G92 E0',
-      'M190 S{bed} ; plateau',
-      'M109 S{temp} ; buse'
+      'G0 X10 Y6 Z2 F6000',
+      'G0 Z0.4 F600',
+      'G1 X290 Y6 E14 F900',
+      'G1 X290 Y9 F900',
+      'G92 E0',
+      'G0 Z2 F600'
     ].join('\n'),
     endGcode: [
-      'M107 ; arrêt ventilateur',
-      'M104 S0 ; arrêt chauffe buse',
-      'M140 S0 ; arrêt chauffe plateau'
+      'M107',
+      'M104 S0',
+      'M140 S0'
     ].join('\n')
   };
   const MACHINE = PROFILES.neva;
@@ -157,6 +174,13 @@
     equilibre: { key: 'equilibre', label: 'Équilibré', layer: 0.20, walls: 2, infill: 0.15, shell: 0.80, hint: 'Le bon compromis pour la plupart des objets.' },
     fin:       { key: 'fin',       label: 'Fin',       layer: 0.15, walls: 3, infill: 0.15, shell: 0.75, hint: 'Surfaces plus lisses, impression plus longue.' }
   };
+
+  function uuid() {
+    if (global.crypto && global.crypto.randomUUID) return global.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); });
+  }
+  /* le firmware Griffin attend un fichier ASCII : accents retirés */
+  const ascii = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x00-\x7F]/g, '-');
 
   /* ---------- outils Clipper ---------- */
   const PT = () => CL.PolyType, CT = () => CL.ClipType, PFT = () => CL.PolyFillType;
@@ -453,16 +477,20 @@
     if (M.flavor === 'Griffin') {
       // en-tête lu par le firmware Ultimaker (valeurs complétées en fin de découpe)
       [';START_OF_HEADER', ';HEADER_VERSION:0.1', ';FLAVOR:Griffin',
-       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.1', ';GENERATOR.BUILD_DATE:2026-10-29',
+       // version à trois nombres (x.y.z) : une version courte peut faire planter le firmware
+       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.1.1', ';GENERATOR.BUILD_DATE:2026-10-29',
        ';TARGET_MACHINE.NAME:' + M.name,
        ';EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:' + M.temp,
        ';EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:{{VOL}}',
+       ';EXTRUDER_TRAIN.0.MATERIAL.GUID:' + (M.materialGuid || ''),
        ';EXTRUDER_TRAIN.0.NOZZLE.DIAMETER:' + M.nozzle,
        ';EXTRUDER_TRAIN.0.NOZZLE.NAME:AA ' + M.nozzle,
        ';BUILD_PLATE.INITIAL_TEMPERATURE:' + (M.bedTemp || 0),
+       ';BUILD_VOLUME.TEMPERATURE:28',
        ';PRINT.TIME:{{TIME}}', ';PRINT.GROUPS:1',
        ';PRINT.SIZE.MIN.X:{{MINX}}', ';PRINT.SIZE.MIN.Y:{{MINY}}', ';PRINT.SIZE.MIN.Z:0.27',
        ';PRINT.SIZE.MAX.X:{{MAXX}}', ';PRINT.SIZE.MAX.Y:{{MAXY}}', ';PRINT.SIZE.MAX.Z:{{MAXZ}}',
+       ';SLICE_UUID:' + uuid(),
        ';END_OF_HEADER'].forEach(l => em.raw(l));
     } else {
       em.raw(';FLAVOR:Marlin');
@@ -575,6 +603,7 @@
       const f = n => (Math.round(n * 1000) / 1000).toString();
       gcode = gcode.replace('{{VOL}}', Math.round(em.filament * fillArea)).replace('{{MINX}}', f(x0)).replace('{{MINY}}', f(y0))
         .replace('{{MAXX}}', f(x1)).replace('{{MAXY}}', f(y1)).replace('{{MAXZ}}', f(zTop));
+      gcode = ascii(gcode);
     }
     onProgress(1, 'Terminé');
     return {

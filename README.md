@@ -95,17 +95,23 @@ Le profil Vyper n'a pas encore été testé sur la machine. Vérifiez ces valeur
 
 ## Points à valider sur l'Ultimaker S7
 
-Le profil S7 n'a pas encore été testé sur la machine. Points importants :
+Le G-code S7 suit le format décrit par Anson Liu pour son profil PrusaSlicer des Ultimaker S3/S5/S7
+([source](https://ansonliu.com/2024/04/ultimaker-s3-s5-s7-prusaslicer-profile/)) :
+
+- en-tête Griffin complet (`;START_OF_HEADER` … `;END_OF_HEADER`) avec durée, volume de matériau, emprise, `MATERIAL.GUID`, `BUILD_VOLUME.TEMPERATURE` et `SLICE_UUID` ;
+- version du générateur en trois nombres (`2.1.1`) ;
+- démarrage avec `G280 S1` (origine et nivellement ; `G28`/`G29` ne sont pas reconnus), puis une ligne d'amorçage à l'avant du plateau ;
+- fichier en ASCII pur (sans accents), extension `.gcode`, sur clé USB.
+
+Le profil n'a pas encore été testé sur la machine :
 
 | Réglage | Valeur actuelle | Où le changer |
 |---|---|---|
-| Format du fichier | G-code « Griffin » avec un en-tête (températures, durée, volume de matériau, emprise) | `src/slicer.js` (en-tête Griffin) |
-| Matériau | l'en-tête n'indique pas l'identifiant du matériau : l'imprimante peut demander de confirmer le PLA chargé | à confirmer sur l'écran |
-| Origine des coordonnées | coin avant gauche, plateau 330 × 240 mm | `PROFILES.s7.origin` dans `src/slicer.js` |
+| Matériau | identifiant repris du profil d'Anson Liu ; selon lui, il n'influence pas l'impression. L'imprimante peut demander de confirmer le PLA chargé | `PROFILES.s7.materialGuid` dans `src/slicer.js` |
+| Ligne d'amorçage | de X10 à X290 à 6 mm du bord avant, 14 mm de filament | Réglages animateur (G-code de démarrage) |
+| Origine des coordonnées | coin avant gauche, plateau 330 × 240 mm | `PROFILES.s7.origin` |
 | Rétraction | 6,5 mm à 25 mm/s | `PROFILES.s7.retract` |
 | Températures PLA | buse 210 °C, plateau 60 °C | Réglages animateur |
-
-Si l'imprimante refuse le fichier, comparer avec l'en-tête d'un fichier produit par UltiMaker Cura pour la S7.
 
 ## Points à valider sur votre Neva
 

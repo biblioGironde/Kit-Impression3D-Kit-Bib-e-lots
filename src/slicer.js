@@ -12,41 +12,111 @@
   const FIL_AREA = Math.PI * (FIL_D / 2) ** 2;
   const PLA_DENSITY = 1.24;              // g/cm3
 
-  /* Réglages machine — à ajuster si besoin (voir README) */
-  const MACHINE = {
-    name: 'Dagoma Neva',
-    bedRadius: 90,          // plateau Ø180 mm
-    partRadius: 84,         // zone utile pour les pièces (marge pour la jupe)
-    maxHeight: 190,         // hauteur utile (200 mm annoncés, marge de sécurité)
-    nozzle: 0.4,
-    lineWidth: 0.45,
-    firstLayer: 0.3,
-    firstLayerWidth: 0.5,
-    temp: 210,
-    speeds: { first: 20, outer: 30, inner: 45, infill: 60, solid: 40, skirt: 25, travel: 120 },
-    retract: { length: 3.5, speed: 40, minTravel: 2 },
-    skirt: { distance: 4, loops: 2 },
-    startGcode: [
-      'M107 ; ventilateur arrêté',
-      'M82 ; extrusion absolue',
-      'G90 ; coordonnées absolues',
-      'M104 S{temp} ; chauffe de la buse',
-      'G28 ; origine (tête en haut)',
-      'G29 ; calibration automatique du plateau',
-      'M109 S{temp} ; attente de la température',
-      'G92 E0'
-    ].join('\n'),
-    endGcode: [
-      'M104 S0 ; arrêt chauffe',
-      'M107 ; arrêt ventilateur',
-      'G91',
-      'G1 E-3 F2400 ; rétraction',
-      'G1 Z10 F3000',
-      'G90',
-      'G28 ; retour en haut',
-      'M84 ; moteurs relâchés'
-    ].join('\n')
+  /* Profils des imprimantes — à ajuster si besoin (voir README).
+     bed.shape : 'round' (rayon) ou 'rect' (largeur × profondeur).
+     origin    : position du centre du plateau dans les coordonnées de la machine
+                 ([0, 0] pour une delta, centre du plateau pour une cartésienne).
+     Les valeurs marquées « à valider » n'ont pas été vérifiées sur la machine. */
+  const PROFILES = {
+    neva: {
+      id: 'neva',
+      name: 'Dagoma Neva',
+      kind: 'delta',
+      bed: { shape: 'round', radius: 90, margin: 6 },   // plateau Ø 180 mm
+      origin: [0, 0],
+      maxHeight: 190,         // 200 mm annoncés, marge de sécurité
+      nozzle: 0.4,
+      lineWidth: 0.45,
+      firstLayer: 0.3,
+      firstLayerWidth: 0.5,
+      temp: 210,
+      bedTemp: 0,             // pas de plateau chauffant
+      speeds: { first: 20, outer: 30, inner: 45, infill: 60, solid: 40, skirt: 25, travel: 120 },
+      retract: { length: 3.5, speed: 40, minTravel: 2 },
+      skirt: { distance: 4, loops: 2 },
+      sdFile: 'dagoma0.g',    // à valider : nom lu par la Neva au bouton
+      baud: 250000,           // à valider
+      startGcode: [
+        'M107 ; ventilateur arrêté',
+        'M82 ; extrusion absolue',
+        'G90 ; coordonnées absolues',
+        'M104 S{temp} ; chauffe de la buse',
+        'G28 ; origine (tête en haut)',
+        'G29 ; calibration automatique du plateau',
+        'M109 S{temp} ; attente de la température',
+        'G92 E0'
+      ].join('\n'),
+      endGcode: [
+        'M104 S0 ; arrêt chauffe',
+        'M107 ; arrêt ventilateur',
+        'G91',
+        'G1 E-3 F2400 ; rétraction',
+        'G1 Z10 F3000',
+        'G90',
+        'G28 ; retour en haut',
+        'M84 ; moteurs relâchés'
+      ].join('\n')
+    },
+    vyper: {
+      id: 'vyper',
+      name: 'Anycubic Vyper',
+      kind: 'cartesian',
+      bed: { shape: 'rect', w: 245, h: 245, margin: 8 },  // plateau 245 × 245 mm
+      origin: [122.5, 122.5], // origine (0, 0) dans le coin avant gauche
+      maxHeight: 250,         // 260 mm annoncés, marge de sécurité
+      nozzle: 0.4,
+      lineWidth: 0.45,
+      firstLayer: 0.3,
+      firstLayerWidth: 0.5,
+      temp: 205,
+      bedTemp: 60,            // plateau chauffant, PLA
+      speeds: { first: 20, outer: 35, inner: 50, infill: 70, solid: 45, skirt: 25, travel: 150 },
+      retract: { length: 2, speed: 35, minTravel: 2 },     // à valider selon la machine
+      skirt: { distance: 4, loops: 2 },
+      sdFile: 'atelier.gcode', // le fichier se choisit sur l'écran tactile
+      baud: 115200,           // à valider
+      startGcode: [
+        'M107 ; ventilateur arrêté',
+        'M82 ; extrusion absolue',
+        'G90 ; coordonnées absolues',
+        'M140 S{bed} ; chauffe du plateau',
+        'M104 S{temp} ; chauffe de la buse',
+        'M190 S{bed} ; attente du plateau',
+        'M109 S{temp} ; attente de la buse',
+        'G28 ; origine',
+        'M420 S1 ; active le nivellement enregistré (à valider)',
+        'G92 E0',
+        'G1 Z2 F600',
+        'G1 X10 Y5 F4000 ; ligne de purge',
+        'G1 Z0.3 F600',
+        'G1 X120 Y5 E12 F1200',
+        'G1 X120 Y5.4 F1200',
+        'G1 X10 Y5.4 E24 F1200',
+        'G92 E0',
+        'G1 Z2 F600'
+      ].join('\n'),
+      endGcode: [
+        'M104 S0 ; arrêt chauffe buse',
+        'M140 S0 ; arrêt chauffe plateau',
+        'M107 ; arrêt ventilateur',
+        'G91',
+        'G1 E-2 F2400 ; rétraction',
+        'G1 Z10 F3000',
+        'G90',
+        'G1 X0 Y235 F4000 ; présente le plateau',
+        'M84 ; moteurs relâchés'
+      ].join('\n')
+    }
   };
+  const MACHINE = PROFILES.neva;
+
+  /* rayon du cercle utile (delta) ou demi-côtés (cartésienne), marge comprise */
+  function usableBed(M) {
+    const b = M.bed;
+    return b.shape === 'round'
+      ? { shape: 'round', r: b.radius - b.margin }
+      : { shape: 'rect', hw: b.w / 2 - b.margin, hh: b.h / 2 - b.margin };
+  }
 
   const PRESETS = {
     rapide:    { key: 'rapide',    label: 'Rapide',    layer: 0.28, walls: 2, infill: 0.10, shell: 0.84, hint: 'Brouillon solide, couches visibles.' },
@@ -213,6 +283,7 @@
     this.time = 0; this.filament = 0; this.retracted = false;
     this.pv = []; this.pc = [];
     this.layerEnds = [];
+    this.ox = (M.origin || [0, 0])[0]; this.oy = (M.origin || [0, 0])[1];
   }
   Emitter.prototype.fmt = n => (Math.round(n * 1000) / 1000).toString();
   Emitter.prototype.raw = function (s) { this.out.push(s); };
@@ -236,7 +307,7 @@
     const d = Math.hypot(x - this.x, y - this.y);
     if (d < 0.01) return;
     if (d > this.M.retract.minTravel) this.retract();
-    this.out.push('G0 X' + this.fmt(x) + ' Y' + this.fmt(y) + ' F' + (this.M.speeds.travel * 60));
+    this.out.push('G0 X' + this.fmt(x + this.ox) + ' Y' + this.fmt(y + this.oy) + ' F' + (this.M.speeds.travel * 60));
     this.time += d / this.M.speeds.travel;
     this.x = x; this.y = y;
   };
@@ -247,7 +318,7 @@
     const de = d * epm;
     this.e += de;
     this.filament += de;
-    this.out.push('G1 X' + this.fmt(x) + ' Y' + this.fmt(y) + ' E' + this.e.toFixed(5) + ' F' + Math.round(speed * 60));
+    this.out.push('G1 X' + this.fmt(x + this.ox) + ' Y' + this.fmt(y + this.oy) + ' E' + this.e.toFixed(5) + ' F' + Math.round(speed * 60));
     this.time += d / speed;
     this.pv.push(this.x, this.y, this.z, x, y, this.z);
     this.pc.push(type, type);
@@ -299,9 +370,10 @@
 
   /* ---------- découpe complète ---------- */
   async function slice(soups, options = {}, onProgress = () => {}) {
-    const M = Object.assign({}, MACHINE, options.machine || {});
-    M.speeds = Object.assign({}, MACHINE.speeds, (options.machine || {}).speeds || {});
-    M.retract = Object.assign({}, MACHINE.retract, (options.machine || {}).retract || {});
+    const base = PROFILES[options.profile] || MACHINE;
+    const M = Object.assign({}, base, options.machine || {});
+    M.speeds = Object.assign({}, base.speeds, (options.machine || {}).speeds || {});
+    M.retract = Object.assign({}, base.retract, (options.machine || {}).retract || {});
     const Q = PRESETS[options.preset] || PRESETS.equilibre;
     const w = M.lineWidth;
     const yieldUI = () => new Promise(r => setTimeout(r, 0));
@@ -349,7 +421,7 @@
     em.raw(';TIME:{{TIME}}');
     em.raw(';Filament used: {{FIL}}m');
     em.raw(';Layer count: ' + layers.length);
-    M.startGcode.replace(/\{temp\}/g, M.temp).split('\n').forEach(l => em.raw(l));
+    M.startGcode.replace(/\{temp\}/g, M.temp).replace(/\{bed\}/g, M.bedTemp || 0).split('\n').forEach(l => em.raw(l));
     em.time += 180; // chauffe + calibration (estimation)
 
     for (let L = 0; L < layers.length; L++) {
@@ -368,7 +440,10 @@
       // jupe (première couche)
       if (first) {
         const base = union(islandsOf(lay.region).map(isl => isl[0]));
-        const disc = [circlePoly(M.bedRadius - 1)];
+        const U = usableBed(M);
+        const disc = U.shape === 'round' ? [circlePoly(M.bed.radius - 1)]
+          : [[{ X: -(M.bed.w / 2 - 1) * SC, Y: -(M.bed.h / 2 - 1) * SC }, { X: (M.bed.w / 2 - 1) * SC, Y: -(M.bed.h / 2 - 1) * SC },
+              { X: (M.bed.w / 2 - 1) * SC, Y: (M.bed.h / 2 - 1) * SC }, { X: -(M.bed.w / 2 - 1) * SC, Y: (M.bed.h / 2 - 1) * SC }]];
         for (let k = M.skirt.loops - 1; k >= 0; k--) {
           const sk = inter(offset(base, M.skirt.distance + k * lw), disc);
           const ordered = nearestOrder(sk, em.x, em.y, p => [p[0].X / SC, p[0].Y / SC]);
@@ -455,7 +530,7 @@
     };
   }
 
-  const api = { slice, MACHINE, PRESETS, TYPES: T };
+  const api = { slice, MACHINE, PROFILES, PRESETS, TYPES: T, usableBed };
   global.NevaSlicer = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

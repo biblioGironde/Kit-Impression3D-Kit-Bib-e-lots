@@ -1,4 +1,4 @@
-<title>Kit bib-e-lots - Atelier Neva</title>
+<title>Kit bib-e-lots - Atelier Impression 3D</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -235,8 +235,38 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
 .field textarea { font-family: var(--mono); font-size: 12.5px; min-height: 150px; resize: vertical; }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* écran d'accueil : choix de l'imprimante */
+.splash { position: fixed; inset: 0; z-index: 30; background: var(--paper); overflow-y: auto; display: grid; place-items: center; padding-block: max(24px, env(safe-area-inset-top, 0px)) max(24px, env(safe-area-inset-bottom, 0px)); }
+.splash-inner { width: min(980px, 100%); display: flex; flex-direction: column; gap: 28px; }
+.splash-head h2 { font-size: clamp(28px, 4vw, 40px); font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
+.splash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.pcard { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 18px 20px 20px; border: 2px solid var(--line); border-radius: 16px; background: var(--panel); transition: border-color .15s, transform .15s; }
+.pcard:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pcard:focus-visible { border-color: var(--accent); }
+.pimg { align-self: stretch; display: grid; place-items: center; height: 240px; margin-bottom: 6px; }
+.pimg img, .pimg svg { max-height: 100%; max-width: 100%; }
+.pname { font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1.05; display: flex; flex-direction: column; }
+.pname small { font-family: var(--body); font-weight: 700; font-size: 13px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.pspec { font-weight: 700; }
+.pinfos { font-size: 13.5px; color: var(--muted); }
+.lastused { position: absolute; top: 14px; right: 14px; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; }
+.pdraw .pl, .pdraw .pt { fill: none; stroke: var(--ink); stroke-linecap: round; stroke-linejoin: round; }
+.pdraw .pl { stroke-width: 6; }
+.pdraw .pt { stroke-width: 3.5; opacity: .5; }
+.pdraw .pf { fill: var(--soft); stroke: var(--ink); stroke-width: 4; stroke-linejoin: round; }
+.pdraw .pb { fill: var(--accent); }
+.pdraw .pa { fill: var(--ink); }
+.pdraw .pp { fill: var(--pla); }
+.pdraw .ps { fill: var(--pla); opacity: .85; }
+.toobig { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--bad); }
+p.toobig { font-size: 13.5px; margin: 8px 0 0; }
+
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 10px 16px; border-radius: 9px; font-size: 14px; font-weight: 700; max-width: calc(100vw - 32px); z-index: 20; }
 
+@media (max-width: 1480px) {
+  #changePrinter .txt, #openSettings .txt { display: none; }
+  #changePrinter, #openSettings { padding: 8px 10px; }
+}
 @media (max-width: 860px) {
   .app { height: auto; min-height: 100%; }
   .stage { grid-template-columns: minmax(0, 1fr); }
@@ -276,11 +306,15 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
         <circle cx="17" cy="22" r="2.4" fill="var(--pla)"/>
         <ellipse cx="17" cy="29.5" rx="11" ry="2.6" fill="var(--accent)"/>
       </svg>
-      <div><h1><span class="nw">Kit bib-e-lots</span> - <span class="nw">Atelier Neva</span></h1><small>Dagoma Neva · plateau Ø 180 mm</small></div>
+      <div><h1><span class="nw">Kit bib-e-lots</span> - <span class="nw">Atelier Impression 3D</span></h1><small><span id="printerName">Dagoma Neva</span> · <span id="printerBed">Plateau rond Ø 180 mm</span></small></div>
     </div>
     <nav aria-label="Étapes" style="flex:1;min-width:0">
       <ol class="steps" id="steps"></ol>
     </nav>
+    <button class="iconbtn" id="changePrinter" type="button" aria-haspopup="dialog" aria-label="Changer d’imprimante" title="Changer d’imprimante">
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 14V3h10v11M3 6h10M6 14V9h4v5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <span class="txt">Imprimante</span>
+    </button>
     <button class="iconbtn" id="openSettings" type="button" aria-haspopup="dialog" aria-label="Réglages animateur">
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h7M13 4h1M2 12h1M7 12h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="4" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="5" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
       <span class="txt">Réglages animateur</span>
@@ -303,6 +337,17 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
   </footer>
 </div>
 
+<div class="splash" id="splash" role="dialog" aria-modal="true" aria-labelledby="splashTitle" hidden>
+  <div class="splash-inner gutter">
+    <div class="splash-head">
+      <div class="kicker">Kit bib-e-lots · Atelier Impression 3D</div>
+      <h2 id="splashTitle">Quelle imprimante utilisez-vous ?</h2>
+      <p class="lead">Touchez l’imprimante posée devant vous. L’atelier s’adapte à son plateau et à son mode d’emploi.</p>
+    </div>
+    <div class="splash-cards" id="splashCards"></div>
+  </div>
+</div>
+
 <dialog id="settings" aria-labelledby="settingsTitle">
   <form class="dlg" method="dialog" id="settingsForm">
     <div>
@@ -311,13 +356,14 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
     </div>
     <div class="two">
       <div class="field"><label for="cfgTemp">Température de la buse (°C)</label><input id="cfgTemp" type="number" min="180" max="240" step="5"></div>
+      <div class="field" id="bedField"><label for="cfgBed">Température du plateau (°C)</label><input id="cfgBed" type="number" min="0" max="110" step="5"></div>
       <div class="field"><label for="cfgPrice">Prix du filament (€/kg)</label><input id="cfgPrice" type="number" min="0" step="1"></div>
-      <div class="field"><label for="cfgFile">Nom du fichier sur la carte SD</label><input id="cfgFile" type="text" spellcheck="false"></div>
+      <div class="field"><label for="cfgFile">Nom du fichier sur la carte</label><input id="cfgFile" type="text" spellcheck="false"></div>
       <div class="field"><label for="cfgBaud">Vitesse du port USB (bauds)</label><select id="cfgBaud"><option>250000</option><option>115200</option></select></div>
     </div>
     <div class="field">
       <label for="cfgStart">G-code de démarrage</label>
-      <small>Pour être au plus près de la machine, collez ici le début d’un fichier produit par Cura by Dagoma (jusqu’à la première couche). <span class="mono">{temp}</span> est remplacé par la température.</small>
+      <small>Pour être au plus près de la machine, collez ici le début d’un fichier produit par le logiciel du fabricant (Cura by Dagoma, Cura pour la Vyper…), jusqu’à la première couche. <span class="mono">{temp}</span> et <span class="mono">{bed}</span> sont remplacés par la température.</small>
       <textarea id="cfgStart" spellcheck="false"></textarea>
     </div>
     <div class="field">

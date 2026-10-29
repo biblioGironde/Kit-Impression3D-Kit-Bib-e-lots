@@ -1,8 +1,9 @@
-# Kit bib-e-lots - Atelier Neva
+# Kit bib-e-lots - Atelier Impression 3D
 
 ![Atelier Neva : choix des modèles dans la catégorie « Objets en Bib », avec l’aperçu 3D sur le plateau de la Neva](docs/capture.png)
 
-Application web pour imprimer sur une Dagoma Neva sans connaître le slicing.
+Application web pour imprimer en 3D sans connaître le slicing, sur **Dagoma Neva** ou **Anycubic Vyper**.
+Au lancement, l'usager touche l'imprimante posée devant lui ; l'atelier s'adapte à son plateau et à son mode d'emploi.
 Tout se passe dans le navigateur, sans serveur.
 
 Le parcours se fait en quatre étapes :
@@ -58,6 +59,33 @@ Pour un objet en plusieurs tailles, utilisez `variantes: [{ id, label, fichier }
 Les fichiers STL doivent être en millimètres, posés à plat, Z vers le haut.
 
 Pour tester un STL sans modifier le code : **Réglages animateur → Tester un fichier STL**.
+
+## Imprimantes prises en charge
+
+| | Dagoma Neva | Anycubic Vyper |
+|---|---|---|
+| Type | delta | cartésienne |
+| Plateau | rond Ø 180 mm | 245 × 245 mm, chauffant |
+| Hauteur utile retenue | 190 mm | 250 mm |
+| Lancement depuis la carte | un appui sur le bouton | choix du fichier sur l'écran tactile |
+| Fichier sur la carte | `dagoma0.g` | `atelier.gcode` |
+
+Les profils sont dans `src/slicer.js` (`PROFILES`). Les réglages animateur sont enregistrés séparément pour chaque imprimante.
+
+Pour remplacer les dessins de l'écran d'accueil par des photos de vos machines, ajoutez des images détourées sur fond transparent :
+`imprimantes/neva.png` et `imprimantes/vyper.png`. Elles sont utilisées automatiquement si elles existent.
+
+## Points à valider sur l'Anycubic Vyper
+
+Le profil Vyper n'a pas encore été testé sur la machine. Vérifiez ces valeurs avant d'ouvrir l'outil au public :
+
+| Réglage | Valeur actuelle | Où le changer |
+|---|---|---|
+| G-code de démarrage | chauffe plateau + buse, `G28`, `M420 S1` (nivellement enregistré), ligne de purge | Réglages animateur : collez l'en-tête d'un fichier produit par Cura avec le profil Vyper |
+| Rétraction | 2 mm à 35 mm/s | `PROFILES.vyper.retract` dans `src/slicer.js` |
+| Vitesse du port USB | 115200 bauds | Réglages animateur |
+| Températures PLA | buse 205 °C, plateau 60 °C | Réglages animateur |
+| Étapes sur l'écran tactile | « Imprimer » → choix du fichier → confirmer | texte du guide dans `src/app.js` |
 
 ## Points à valider sur votre Neva
 

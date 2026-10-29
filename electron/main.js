@@ -1,6 +1,6 @@
-/* Kit bib-e-lots - Atelier Neva — application de bureau (Electron)
+/* Kit bib-e-lots - Atelier Impression 3D — application de bureau (Electron)
    Sert l'application web depuis les fichiers locaux (fonctionne hors ligne)
-   et autorise l'accès au port série pour piloter la Neva par câble USB. */
+   et autorise l'accès au port série pour piloter l’imprimante par câble USB. */
 const { app, BrowserWindow, protocol, net, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -18,7 +18,7 @@ function createWindow() {
     height: 880,
     minWidth: 900,
     minHeight: 600,
-    title: 'Kit bib-e-lots - Atelier Neva',
+    title: 'Kit bib-e-lots - Atelier Impression 3D',
     backgroundColor: '#ECEFF3',
     icon: path.join(ROOT, 'build', 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
@@ -30,7 +30,7 @@ function createWindow() {
   ses.on('select-serial-port', (event, portList, webContents, callback) => {
     event.preventDefault();
     if (!portList.length) {
-      dialog.showMessageBox(win, { type: 'warning', message: 'Aucune imprimante détectée', detail: 'Vérifiez que la Neva est allumée et reliée à l’ordinateur par le câble USB.' });
+      dialog.showMessageBox(win, { type: 'warning', message: 'Aucune imprimante détectée', detail: 'Vérifiez que l’imprimante est allumée et reliée à l’ordinateur par le câble USB.' });
       return callback('');
     }
     if (portList.length === 1) return callback(portList[0].portId);

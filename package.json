@@ -1,11 +1,14 @@
 {
   "name": "kit-impression3d-atelier-dagoma-neva",
-  "productName": "Atelier Neva",
-  "version": "1.0.0",
-  "description": "Kit bib-e-lots - Atelier Neva : préparer et lancer une impression 3D sur Dagoma Neva, sans connaître le slicing.",
+  "productName": "Atelier Impression 3D",
+  "version": "2.0.0",
+  "description": "Kit bib-e-lots - Atelier Impression 3D : préparer et lancer une impression 3D sur Dagoma Neva ou Anycubic Vyper, sans connaître le slicing.",
   "author": "biblio.gironde",
   "homepage": "https://github.com/biblioGironde/Kit-Impression3D-Atelier-Dagoma-Neva",
-  "repository": { "type": "git", "url": "https://github.com/biblioGironde/Kit-Impression3D-Atelier-Dagoma-Neva.git" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/biblioGironde/Kit-Impression3D-Atelier-Dagoma-Neva.git"
+  },
   "main": "electron/main.js",
   "scripts": {
     "build:web": "python3 build.py",
@@ -21,9 +24,12 @@
   },
   "build": {
     "appId": "fr.gironde.biblio.atelier-neva",
-    "productName": "Atelier Neva",
-    "artifactName": "Atelier-Neva-${version}-${os}-${arch}.${ext}",
-    "directories": { "output": "release", "buildResources": "build" },
+    "productName": "Atelier Impression 3D",
+    "artifactName": "Atelier-Impression3D-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
     "files": [
       "index.html",
       "vendor/**",
@@ -34,18 +40,70 @@
     ],
     "mac": {
       "category": "public.app-category.education",
-      "target": [ { "target": "dmg", "arch": ["arm64", "x64"] }, { "target": "zip", "arch": ["arm64", "x64"] } ],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
       "identity": null
     },
     "win": {
-      "target": [ { "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] } ]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Atelier-Neva-${version}-windows-installation.${ext}" },
-    "portable": { "artifactName": "Atelier-Neva-${version}-windows-portable.${ext}" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Atelier-Impression3D-${version}-windows-installation.${ext}"
+    },
+    "portable": {
+      "artifactName": "Atelier-Impression3D-${version}-windows-portable.${ext}"
+    },
     "linux": {
       "category": "Education",
-      "target": [ { "target": "AppImage", "arch": ["x64"] }, { "target": "tar.gz", "arch": ["x64"] } ]
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
-    "publish": [ { "provider": "github", "releaseType": "release" } ]
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
   }
 }

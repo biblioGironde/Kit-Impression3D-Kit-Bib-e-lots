@@ -1,5 +1,7 @@
 # Kit bib-e-lots - Atelier Neva
 
+![Atelier Neva : choix des modèles dans la catégorie « Objets en Bib », avec l’aperçu 3D sur le plateau de la Neva](docs/capture.png)
+
 Application web pour imprimer sur une Dagoma Neva sans connaître le slicing.
 Tout se passe dans le navigateur, sans serveur.
 

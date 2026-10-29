@@ -1,11 +1,18 @@
 /* =====================================================================
-   Atelier Neva — application
+   Kit bib-e-lots - Atelier Impression 3D — application (multi-imprimantes)
    ===================================================================== */
 (function () {
   'use strict';
   const $ = s => document.querySelector(s);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const M = NevaSlicer.MACHINE;
+  let M = NevaSlicer.PROFILES.neva;
+  /* fiche affichée pour chaque imprimante (écran d'accueil, textes) */
+  const PRINTERS = {
+    neva:  { short: 'Neva',  marque: 'Dagoma',   plateau: 'Plateau rond Ø 180 mm', infos: ['Imprimante delta', 'Hauteur max. 190 mm', 'Un seul bouton'] },
+    vyper: { short: 'Vyper', marque: 'Anycubic', plateau: 'Plateau 245 × 245 mm', infos: ['Plateau chauffant', 'Hauteur max. 250 mm', 'Écran tactile'] }
+  };
+  const UI = () => PRINTERS[M.id];
+  const laMachine = () => 'la ' + UI().short;
   const PRESETS = NevaSlicer.PRESETS;
   const fr = (x, d = 0) => x.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
   const duree = s => {
@@ -16,10 +23,24 @@
   const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
   /* ---------------- réglages animateur ---------------- */
-  const DEFAULTS = { temp: M.temp, price: 25, file: 'dagoma0.g', baud: '250000', start: M.startGcode };
-  let cfg = Object.assign({}, DEFAULTS);
-  try { const saved = JSON.parse(localStorage.getItem('atelier-neva-cfg') || 'null'); if (saved) cfg = Object.assign(cfg, saved); } catch (e) { /* stockage indisponible */ }
-  const saveCfg = () => { try { localStorage.setItem('atelier-neva-cfg', JSON.stringify(cfg)); } catch (e) { /* ignoré */ } };
+  const defaultsFor = P => ({ temp: P.temp, bedTemp: P.bedTemp, file: P.sdFile, baud: String(P.baud), start: P.startGcode });
+  let store = { price: 25, last: null, p: {} };
+  try {
+    const saved = JSON.parse(localStorage.getItem('atelier-impression3d-cfg') || 'null');
+    if (saved) store = Object.assign(store, saved);
+    else {
+      const old = JSON.parse(localStorage.getItem('atelier-neva-cfg') || 'null'); // ancienne version Neva seule
+      if (old) { store.price = old.price ?? 25; store.p.neva = { temp: old.temp, file: old.file, baud: old.baud, start: old.start }; }
+    }
+  } catch (e) { /* stockage indisponible */ }
+  let cfg = {};
+  const loadCfg = () => { cfg = Object.assign({ price: store.price }, defaultsFor(M), store.p[M.id] || {}); };
+  const saveCfg = () => {
+    store.price = cfg.price;
+    store.p[M.id] = { temp: cfg.temp, bedTemp: cfg.bedTemp, file: cfg.file, baud: cfg.baud, start: cfg.start };
+    try { localStorage.setItem('atelier-impression3d-cfg', JSON.stringify(store)); } catch (e) { /* ignoré */ }
+  };
+  loadCfg();
 
   /* ---------------- état ---------------- */
   const S = {
@@ -86,7 +107,19 @@
   const dimsText = m => `${fr(m.w, m.w < 10 ? 1 : 0)} × ${fr(m.h, m.h < 10 ? 1 : 0)} × ${fr(m.z, m.z < 10 ? 1 : 0)} mm`;
 
   /* ---------------- placement automatique ---------------- */
-  /* Placement automatique sur le plateau rond.
+  /* zone utile du plateau (marge pour la jupe comprise) */
+  const usable = () => NevaSlicer.usableBed(M);
+  const bedHalfX = () => { const U = usable(); return U.shape === 'round' ? U.r : U.hw; };
+  const bedHalfY = () => { const U = usable(); return U.shape === 'round' ? U.r : U.hh; };
+  function inside(x, y, W, H) {
+    const U = usable();
+    if (U.shape === 'round') { const cx = Math.abs(x) + W / 2, cy = Math.abs(y) + H / 2; return cx * cx + cy * cy <= U.r * U.r; }
+    return Math.abs(x) + W / 2 <= U.hw && Math.abs(y) + H / 2 <= U.hh;
+  }
+  const fitsAlone = m => m.z <= M.maxHeight && (inside(0, 0, m.w, m.h) || inside(0, 0, m.h, m.w));
+  const bedText = () => UI().plateau;
+
+  /* Placement automatique sur le plateau (rond ou rectangulaire).
      Plusieurs dispositions sont essayées (pièces regroupées au centre ou
      poussées vers un bord) ; on garde celle qui place le plus de pièces. */
   function computeLayout(basket) {
@@ -97,9 +130,11 @@
       if (m) items.push({ uid: uid++, id, w: m.w, h: m.h });
     }
     items.sort((a, b) => (b.w * b.h) - (a.w * a.h) || a.uid - b.uid);
-    const R = M.partRadius, gap = 6, stepXY = 2;
+    const gap = 6;
+    const ex = bedHalfX(), ey = bedHalfY();
+    const stepXY = Math.max(ex, ey) > 100 ? 3 : 2;
     const anchors = [[0, 0]];
-    for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4 - Math.PI / 2; anchors.push([Math.round(Math.cos(t) * R), Math.round(Math.sin(t) * R)]); }
+    for (let k = 0; k < 8; k++) { const t = k * Math.PI / 4 - Math.PI / 2; anchors.push([Math.round(Math.cos(t) * ex), Math.round(Math.sin(t) * ey)]); }
     let bestLayout = null;
     for (const [ax, ay] of anchors) {
       const placed = [], failed = [];
@@ -107,11 +142,10 @@
         let best = null;
         for (const rot of [0, 1]) {
           const W = rot ? it.h : it.w, H = rot ? it.w : it.h;
-          for (let x = -R; x <= R; x += stepXY) {
-            if (Math.abs(x) + W / 2 > R) continue;
-            for (let y = -R; y <= R; y += stepXY) {
-              const cx = Math.abs(x) + W / 2, cy = Math.abs(y) + H / 2;
-              if (cx * cx + cy * cy > R * R) continue;
+          for (let x = -ex; x <= ex; x += stepXY) {
+            if (Math.abs(x) + W / 2 > ex) continue;
+            for (let y = -ey; y <= ey; y += stepXY) {
+              if (!inside(x, y, W, H)) continue;
               const score = (x - ax) ** 2 + (y - ay) ** 2 + rot * 3;
               if (best && score >= best.score) continue;
               let ok = true;
@@ -209,41 +243,77 @@
       this.camera.updateProjectionMatrix();
     },
     buildPrinter() {
+      if (this.printer) {
+        this.scene.remove(this.printer);
+        this.printer.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      }
       const g = new THREE.Group();
-      this.plateMat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 });
-      const plate = new THREE.Mesh(new THREE.CylinderGeometry(M.bedRadius, M.bedRadius, 3, 96), this.plateMat);
-      plate.rotation.x = Math.PI / 2;
-      plate.position.z = -1.6;
-      g.add(plate);
-      this.lineMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.35 });
-      this.zoneMat = new THREE.LineDashedMaterial({ dashSize: 3, gapSize: 3, transparent: true, opacity: 0.8 });
-      const ring = (r, z, mat, n = 128) => {
-        const pts = [];
-        for (let i = 0; i <= n; i++) { const a = i / n * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z)); }
-        const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+      this.plateMat = this.plateMat || new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0 });
+      this.lineMat = this.lineMat || new THREE.LineBasicMaterial({ transparent: true, opacity: 0.35 });
+      this.zoneMat = this.zoneMat || new THREE.LineDashedMaterial({ dashSize: 3, gapSize: 3, transparent: true, opacity: 0.8 });
+      this.frameMat = this.frameMat || new THREE.MeshStandardMaterial({ roughness: 0.6, transparent: true, opacity: 0.28, depthWrite: false });
+      this.volMat = this.volMat || new THREE.LineBasicMaterial({ transparent: true, opacity: 0.22 });
+      const line = (pts, mat, closed) => {
+        const v = pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+        if (closed) v.push(v[0].clone());
+        const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(v), mat);
         l.computeLineDistances();
         return l;
       };
-      [30, 60].forEach(r => g.add(ring(r, 0.05, this.lineMat)));
-      g.add(ring(M.partRadius, 0.08, this.zoneMat));
-      const cross = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-M.bedRadius, 0, 0.05), new THREE.Vector3(M.bedRadius, 0, 0.05), new THREE.Vector3(0, -M.bedRadius, 0.05), new THREE.Vector3(0, M.bedRadius, 0.05)]);
-      g.add(new THREE.LineSegments(cross, this.lineMat));
-      // colonnes de la delta + volume d'impression
-      this.frameMat = new THREE.MeshStandardMaterial({ roughness: 0.6, transparent: true, opacity: 0.28, depthWrite: false });
-      this.volMat = new THREE.LineBasicMaterial({ transparent: true, opacity: 0.22 });
-      const towerR = 122, H = 250;
-      const tops = [];
-      for (let k = 0; k < 3; k++) {
-        const a = Math.PI / 2 + k * Math.PI * 2 / 3;
-        const t = new THREE.Mesh(new THREE.BoxGeometry(9, 9, H + 30), this.frameMat);
-        t.position.set(Math.cos(a) * towerR, Math.sin(a) * towerR, (H + 30) / 2 - 30);
-        t.rotation.z = a;
-        g.add(t);
-        tops.push(new THREE.Vector3(Math.cos(a) * towerR, Math.sin(a) * towerR, H));
+      const ring = (r, z, mat, n = 128) => {
+        const pts = [];
+        for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; pts.push([Math.cos(a) * r, Math.sin(a) * r, z]); }
+        return line(pts, mat, true);
+      };
+      const U = usable();
+      if (M.bed.shape === 'round') {
+        const R = M.bed.radius;
+        const plate = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 3, 96), this.plateMat);
+        plate.rotation.x = Math.PI / 2;
+        plate.position.z = -1.6;
+        g.add(plate);
+        [R / 3, 2 * R / 3].forEach(r => g.add(ring(r, 0.05, this.lineMat)));
+        g.add(ring(U.r, 0.08, this.zoneMat));
+        g.add(line([[-R, 0, 0.05], [R, 0, 0.05]], this.lineMat));
+        g.add(line([[0, -R, 0.05], [0, R, 0.05]], this.lineMat));
+        // colonnes de la delta + volume d'impression
+        const towerR = R + 32, H = M.maxHeight + 60;
+        const tops = [];
+        for (let k = 0; k < 3; k++) {
+          const a = Math.PI / 2 + k * Math.PI * 2 / 3;
+          const t = new THREE.Mesh(new THREE.BoxGeometry(9, 9, H + 30), this.frameMat);
+          t.position.set(Math.cos(a) * towerR, Math.sin(a) * towerR, (H + 30) / 2 - 30);
+          t.rotation.z = a;
+          g.add(t);
+          tops.push([Math.cos(a) * towerR, Math.sin(a) * towerR, H]);
+        }
+        g.add(line(tops, this.volMat, true));
+        g.add(ring(R, M.maxHeight, this.volMat, 96));
+      } else {
+        const w = M.bed.w, h = M.bed.h;
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h, 4), this.plateMat);
+        plate.position.z = -2.1;
+        g.add(plate);
+        for (let x = -w / 2 + 50; x < w / 2; x += 50) g.add(line([[x, -h / 2, 0.05], [x, h / 2, 0.05]], this.lineMat));
+        for (let y = -h / 2 + 50; y < h / 2; y += 50) g.add(line([[-w / 2, y, 0.05], [w / 2, y, 0.05]], this.lineMat));
+        g.add(line([[-U.hw, -U.hh, 0.08], [U.hw, -U.hh, 0.08], [U.hw, U.hh, 0.08], [-U.hw, U.hh, 0.08]], this.zoneMat, true));
+        // portique de la cartésienne + volume d'impression
+        const H = M.maxHeight + 70, px = w / 2 + 28;
+        [-px, px].forEach(x => {
+          const up = new THREE.Mesh(new THREE.BoxGeometry(14, 28, H), this.frameMat);
+          up.position.set(x, 0, H / 2 - 40);
+          g.add(up);
+        });
+        const top = new THREE.Mesh(new THREE.BoxGeometry(2 * px + 14, 28, 14), this.frameMat);
+        top.position.set(0, 0, H - 40);
+        g.add(top);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(2 * px + 40, h + 60, 30), this.frameMat);
+        base.position.set(0, 0, -40);
+        g.add(base);
+        const zt = M.maxHeight;
+        g.add(line([[-w / 2, -h / 2, zt], [w / 2, -h / 2, zt], [w / 2, h / 2, zt], [-w / 2, h / 2, zt]], this.volMat, true));
+        [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sy]) => g.add(line([[sx * w / 2, sy * h / 2, 0], [sx * w / 2, sy * h / 2, zt]], this.volMat)));
       }
-      tops.push(tops[0].clone());
-      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(tops), this.volMat));
-      g.add(ring(M.bedRadius, M.maxHeight, this.volMat, 96));
       this.printer = g;
       this.scene.add(g);
     },
@@ -310,7 +380,8 @@
     framePlate() {
       const dir = new THREE.Vector3(0.12, -0.8, 0.6).normalize();
       const target = new THREE.Vector3(0, 0, 12);
-      const dist = (2 * M.bedRadius) / (2 * Math.tan(this.camera.fov * Math.PI / 360)) * 1.5;
+      const span = M.bed.shape === 'round' ? 2 * M.bed.radius : Math.max(M.bed.w, M.bed.h);
+      const dist = span / (2 * Math.tan(this.camera.fov * Math.PI / 360)) * 1.5;
       this.goal = { target, pos: target.clone().add(dir.multiplyScalar(dist)) };
     },
     setPaths(preview) {
@@ -388,7 +459,7 @@
 
   /* ---------------- découpe ---------------- */
   function sliceKey() {
-    return JSON.stringify([S.layout.placed.map(p => [p.id, p.x, p.y, p.rot]), S.preset, cfg.temp, cfg.start]);
+    return JSON.stringify([M.id, S.layout.placed.map(p => [p.id, p.x, p.y, p.rot]), S.preset, cfg.temp, cfg.bedTemp, cfg.start]);
   }
   let sliceToken = 0;
   async function runSlice() {
@@ -401,7 +472,8 @@
     try {
       const res = await NevaSlicer.slice(buildSoups(S.layout), {
         preset: S.preset,
-        machine: { temp: cfg.temp, startGcode: cfg.start }
+        profile: M.id,
+        machine: { temp: cfg.temp, bedTemp: cfg.bedTemp, startGcode: cfg.start }
       }, (p) => {
         if (token !== sliceToken) return;
         S.progress = p;
@@ -483,16 +555,20 @@
 
   /* ----- étape 1 ----- */
   function miniPlan() {
-    const R = M.bedRadius, s = 132 / (2 * R + 8);
+    const U = usable();
+    const span = M.bed.shape === 'round' ? 2 * M.bed.radius : Math.max(M.bed.w, M.bed.h);
+    const s = 132 / (span + 8);
     const rects = S.layout.placed.map(p => `<rect x="${(p.x - p.W / 2) * s}" y="${(-p.y - p.H / 2) * s}" width="${p.W * s}" height="${p.H * s}" rx="1.5" fill="${colorFor(p.id)}"/>`).join('');
-    return `<svg viewBox="${-66} ${-66} 132 132" width="132" height="132" role="img" aria-label="Plan du plateau vu de dessus">
-      <circle r="${R * s}" fill="var(--plate)"/>
-      <circle r="${M.partRadius * s}" fill="none" stroke="var(--pla)" stroke-dasharray="2 2" stroke-width="1"/>
-      ${rects}</svg>`;
+    const bed = M.bed.shape === 'round'
+      ? `<circle r="${M.bed.radius * s}" fill="var(--plate)"/><circle r="${U.r * s}" fill="none" stroke="var(--pla)" stroke-dasharray="2 2" stroke-width="1"/>`
+      : `<rect x="${-M.bed.w / 2 * s}" y="${-M.bed.h / 2 * s}" width="${M.bed.w * s}" height="${M.bed.h * s}" rx="3" fill="var(--plate)"/><rect x="${-U.hw * s}" y="${-U.hh * s}" width="${2 * U.hw * s}" height="${2 * U.hh * s}" fill="none" stroke="var(--pla)" stroke-dasharray="2 2" stroke-width="1"/>`;
+    return `<svg viewBox="-66 -66 132 132" width="132" height="132" role="img" aria-label="Plan du plateau vu de dessus">${bed}${rects}</svg>`;
   }
   function usedPct() {
+    const U = usable();
     const area = S.layout.placed.reduce((a, p) => a + p.W * p.H, 0);
-    return Math.min(100, Math.round(area / (Math.PI * M.partRadius ** 2) * 100));
+    const total = U.shape === 'round' ? Math.PI * U.r ** 2 : 4 * U.hw * U.hh;
+    return Math.min(100, Math.round(area / total * 100));
   }
   const TRASH = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.6 6.5v4.5M9.4 6.5v4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   function basketBlock() {
@@ -534,7 +610,7 @@
           const cur = S.preview && MODELS.get(S.preview) && groupeDe(MODELS.get(S.preview)) === groupeDe(m);
           return `<button type="button" class="card" data-preview="${esc(m.entry.id)}" aria-current="${!!cur}">
             <span class="thumb" data-thumb="${esc(m.entry.id)}">${m.thumb ? `<img alt="" src="${m.thumb}">` : '<span class="ph"></span>'}</span>
-            <span class="meta"><b>${esc(m.entry.nom)}</b><span>${vs.length > 1 ? vs.length + ' variantes' : dimsText(m)}</span></span>
+            <span class="meta"><b>${esc(m.entry.nom)}</b><span>${vs.length > 1 ? vs.length + ' variantes' : dimsText(m)}</span>${vs.some(fitsAlone) ? '' : `<span class="toobig">Trop grand pour ${laMachine()}</span>`}</span>
             ${q ? `<span class="qty" aria-label="${q} sur le plateau">×${q}</span>` : ''}
           </button>`;
         }).join('')}
@@ -601,7 +677,7 @@
           ${ILLO.sdChoice()}
           <span>
             <h3><span class="letter">A</span> Carte SD <span class="badge ok">conseillé</span></h3>
-            <p>On copie le fichier sur la carte, puis la Neva imprime seule.</p>
+            <p>On copie le fichier sur la carte, puis ${laMachine()} imprime seule.</p>
             <ul><li>L’ordinateur peut être éteint pendant l’impression.</li><li>Fonctionne depuis n’importe quel ordinateur.</li></ul>
           </span>
         </button>`;
@@ -610,7 +686,7 @@
           ${ILLO.usbChoice()}
           <span>
             <h3><span class="letter">B</span> Câble USB</h3>
-            <p>L’ordinateur envoie l’impression à la Neva en direct, depuis cette page.</p>
+            <p>L’ordinateur envoie l’impression à ${laMachine()} en direct, depuis cette page.</p>
             <ul><li>Chrome ou Edge sur ordinateur.</li><li>L’ordinateur et cette page restent ouverts jusqu’à la fin.</li></ul>
           </span>
         </button>` : '';
@@ -632,33 +708,39 @@
     const file = cfg.file;
     const isArtifact = !!(window.claude && window.claude.use);
     if (S.mode === 'sd') {
-      return [
+      const commun = [
         { illo: ILLO.download(file), title: 'Télécharger le fichier',
-          body: `<p>Le fichier <code>${esc(file)}</code> contient toutes les instructions pour la Neva.</p>
+          body: `<p>Le fichier <code>${esc(file)}</code> contient toutes les instructions pour ${laMachine()}.</p>
             ${isArtifact ? `<p class="note">Dans cet aperçu, le fichier arrive sous le nom <code>${esc(file)}.txt</code> : renommez-le en <code>${esc(file)}</code> avant de le copier.</p>` : ''}
             <div class="row"><button type="button" class="btn primary" data-act="download">Télécharger ${esc(file)}</button>${S.downloaded ? '<span class="badge ok">téléchargé</span>' : ''}</div>` },
-        { illo: ILLO.cardIn(), title: 'Brancher la carte SD sur l’ordinateur',
-          body: `<p>Glissez la carte SD dans le lecteur USB fourni avec la Neva, puis branchez le lecteur sur l’ordinateur.</p>` },
+        { illo: ILLO.cardIn(), title: 'Brancher la carte sur l’ordinateur',
+          body: `<p>Glissez la carte mémoire fournie avec ${laMachine()} dans son lecteur, puis branchez le lecteur sur l’ordinateur.</p>` },
         { illo: ILLO.copy(file), title: 'Copier le fichier sur la carte',
-          body: `<p>Ouvrez la carte SD dans l’explorateur de fichiers. Copiez <code>${esc(file)}</code> directement dans la carte, pas dans un dossier.</p><p>S’il y a déjà un fichier <code>${esc(file)}</code>, choisissez « Remplacer ».</p>` },
+          body: `<p>Ouvrez la carte dans l’explorateur de fichiers. Copiez <code>${esc(file)}</code> directement dans la carte, pas dans un dossier.</p><p>S’il y a déjà un fichier <code>${esc(file)}</code>, choisissez « Remplacer ».</p>` },
         { illo: ILLO.eject(), title: 'Éjecter la carte',
           body: `<p>Sous Windows : clic droit sur la carte, puis « Éjecter ». Sur Mac : faites glisser la carte vers la corbeille. Attendez le message qui confirme qu’on peut la retirer.</p>` },
-        { illo: ILLO.cardToNeva(), title: 'Insérer la carte dans la Neva',
+        { illo: ILLO.cardToPrinter(), title: `Insérer la carte dans ${laMachine()}`,
           body: `<p>Retirez la carte du lecteur et insérez-la dans le lecteur de carte de l’imprimante.</p>` },
         { illo: ILLO.prepare(), title: 'Préparer l’imprimante',
-          body: `<p>Vérifiez que le filament est chargé et que le plateau est propre et vide : aucun reste d’impression.</p>` },
-        { illo: ILLO.button(), title: 'Appuyer sur le bouton',
-          body: `<p>Allumez la Neva, puis appuyez une fois sur le bouton. Elle chauffe, se calibre en venant toucher le plateau, puis commence à imprimer.</p><p>Pendant l’impression, évitez de toucher ou tapoter le plateau. Un nouvel appui sur le bouton met l’impression en pause.</p>` },
-        { illo: ILLO.collect(), title: 'Récupérer les pièces',
-          body: `<p>Comptez environ <strong>${duree(st.seconds)}</strong>. À la fin, la tête remonte. Laissez refroidir quelques minutes, puis décollez les pièces doucement.</p>` }
+          body: `<p>Vérifiez que le filament est chargé et que le plateau est propre et vide : aucun reste d’impression.</p>` }
       ];
+      const lancer = M.id === 'vyper'
+        ? { illo: ILLO.screen(file), title: 'Lancer depuis l’écran tactile',
+            body: `<p>Allumez la Vyper. Sur l’écran, touchez <strong>Imprimer</strong>, choisissez <code>${esc(file)}</code>, puis confirmez.</p><p>Le plateau chauffe d’abord, puis la buse : comptez quelques minutes avant le début de l’impression.</p>` }
+        : { illo: ILLO.button(), title: 'Appuyer sur le bouton',
+            body: `<p>Allumez la Neva, puis appuyez une fois sur le bouton. Elle chauffe, se calibre en venant toucher le plateau, puis commence à imprimer.</p><p>Pendant l’impression, évitez de toucher ou tapoter le plateau. Un nouvel appui sur le bouton met l’impression en pause.</p>` };
+      const fin = { illo: ILLO.collect(), title: 'Récupérer les pièces',
+        body: M.bedTemp
+          ? `<p>Comptez environ <strong>${duree(st.seconds)}</strong>. Attention : le plateau est chaud. Attendez qu’il ait refroidi, puis décollez les pièces doucement.</p>`
+          : `<p>Comptez environ <strong>${duree(st.seconds)}</strong>. À la fin, la tête remonte. Laissez refroidir quelques minutes, puis décollez les pièces doucement.</p>` };
+      return [...commun, lancer, fin];
     }
     const ser = serialSupport();
     const P = PRINTER;
     const conn = P.connected ? '<span class="status on">Imprimante connectée</span>' : P.error ? `<span class="status err">${esc(P.error)}</span>` : '<span class="status">Non connectée</span>';
     return [
       { illo: ILLO.cable(), title: 'Brancher le câble USB',
-        body: `<p>Reliez la Neva à l’ordinateur avec le câble USB, puis allumez l’imprimante.</p>` },
+        body: `<p>Reliez ${laMachine()} à l’ordinateur avec le câble USB, puis allumez l’imprimante.</p>` },
       { illo: ILLO.prepare(), title: 'Préparer l’imprimante',
         body: `<p>Vérifiez que le filament est chargé et que le plateau est propre et vide.</p>` },
       { illo: ILLO.connect(), title: 'Connecter l’imprimante',
@@ -667,7 +749,7 @@
              <div class="row"><button type="button" class="btn primary" data-act="connect" ${P.connected || P.busy ? 'disabled' : ''}>Connecter</button>${conn}</div>`
           : `<div class="callout">${esc(ser.why)}</div><div class="row"><button type="button" class="btn" data-act="switch-sd">Utiliser la carte SD</button></div>` },
       { illo: ILLO.play(), title: 'Lancer l’impression',
-        body: `<p>La Neva chauffe et se calibre avant de commencer. La température et l’avancement s’affichent ici.</p>
+        body: `<p>${M.bedTemp ? 'Le plateau puis la buse chauffent' : 'La Neva chauffe et se calibre'} avant de commencer. La température et l’avancement s’affichent ici.</p>
           <div class="row">
             <button type="button" class="btn primary" data-act="print" ${P.connected && !P.printing ? '' : 'disabled'}>Lancer l’impression</button>
             <button type="button" class="btn" data-act="pause" ${P.printing ? '' : 'disabled'}>${P.paused ? 'Reprendre' : 'Pause'}</button>
@@ -723,9 +805,9 @@
           ${vs.length > 1 ? `<div class="variants" role="group" aria-label="Variante">${vs.map(x => `<button type="button" class="chip" data-variant="${esc(x.entry.id)}" aria-pressed="${x === m}">${esc(x.entry.variante)}</button>`).join('')}</div>` : ''}
           <p>${esc(m.entry.description)}${m.entry.conseil ? ' ' + esc(m.entry.conseil) : ''}</p>
           ${creditHtml(m)}
-          <button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button></div>
+          ${fitsAlone(m) ? `<button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button>` : `<p class="toobig">Trop grand pour ${laMachine()}${vs.length > 1 ? ' : essayez une autre variante' : ''}.</p>`}</div>
         <button type="button" class="iconbtn" data-act="show-plate">Voir tout le plateau</button>`;
-      else top.innerHTML = selTag() || `<div class="tag"><strong>Plateau de la Neva</strong><div class="dims">Ø 180 mm · zone utile en pointillés${S.layout.placed.length ? ' · touchez une pièce pour la sélectionner' : ''}</div></div>`;
+      else top.innerHTML = selTag() || `<div class="tag"><strong>Plateau de ${laMachine()}</strong><div class="dims">${esc(bedText())} · zone utile en pointillés${S.layout.placed.length ? ' · touchez une pièce pour la sélectionner' : ''}</div></div>`;
     }
     if (S.step === 2) {
       top.innerHTML = `<div class="seg" role="group" aria-label="Affichage">
@@ -870,7 +952,7 @@
   /* ---------------- téléchargement ---------------- */
   async function download() {
     const gcode = S.result.gcode;
-    const file = cfg.file || 'dagoma0.g';
+    const file = cfg.file || M.sdFile;
     if (window.claude && window.claude.use) {
       const dl = await window.claude.use('downloads');
       if (dl) {
@@ -913,7 +995,7 @@
     const q = Math.max(0, (S.basket.get(id) || 0) + d);
     const next = new Map(S.basket);
     if (q === 0) next.delete(id); else next.set(id, q);
-    if (d > 0 && m.z > M.maxHeight) { toast('Ce modèle est trop haut pour la Neva'); return; }
+    if (d > 0 && !fitsAlone(m)) { toast(`Ce modèle est trop grand pour ${laMachine()}`); return; }
     const layout = computeLayout(next);
     if (d > 0 && layout.failed.length) { toast('Plus de place sur le plateau : imprimez d’abord ce plateau, puis ce modèle à part'); return; }
     const msg = d > 0 ? `« ${nomAff(m)} » ajouté` : q === 0 ? `« ${nomAff(m)} » retiré du plateau` : `Un « ${nomAff(m)} » retiré`;
@@ -997,19 +1079,23 @@
   /* réglages animateur */
   const dlg = $('#settings');
   function fillSettings() {
+    $('#settingsTitle').textContent = 'Réglages animateur · ' + M.name;
     $('#cfgTemp').value = cfg.temp; $('#cfgPrice').value = cfg.price; $('#cfgFile').value = cfg.file;
+    $('#cfgBed').value = cfg.bedTemp || 0; $('#bedField').hidden = !M.bedTemp;
     $('#cfgBaud').value = cfg.baud; $('#cfgStart').value = cfg.start;
   }
   $('#openSettings').addEventListener('click', () => { fillSettings(); dlg.showModal(); });
-  $('#cfgReset').addEventListener('click', () => { cfg = Object.assign({}, DEFAULTS); fillSettings(); });
+  $('#cfgReset').addEventListener('click', () => { cfg = Object.assign({ price: 25 }, defaultsFor(M)); fillSettings(); });
   dlg.addEventListener('close', () => {
     if (dlg.returnValue !== 'save') return;
     const before = sliceKey();
-    cfg.temp = Math.min(240, Math.max(180, +$('#cfgTemp').value || DEFAULTS.temp));
+    const D = defaultsFor(M);
+    cfg.temp = Math.min(260, Math.max(180, +$('#cfgTemp').value || D.temp));
+    cfg.bedTemp = M.bedTemp ? Math.min(110, Math.max(0, +$('#cfgBed').value || 0)) : 0;
     cfg.price = Math.max(0, +$('#cfgPrice').value || 0);
-    cfg.file = ($('#cfgFile').value || DEFAULTS.file).trim();
+    cfg.file = ($('#cfgFile').value || D.file).trim();
     cfg.baud = $('#cfgBaud').value;
-    cfg.start = $('#cfgStart').value.trim() || DEFAULTS.start;
+    cfg.start = $('#cfgStart').value.trim() || D.start;
     saveCfg();
     if (sliceKey() !== before) { invalidateSlice(); if (S.step >= 2) { S.step = Math.min(S.step, 2); runSlice(); } }
     renderAll();
@@ -1026,7 +1112,7 @@
       const nom = f.name.replace(/\.stl$/i, '');
       register({ id, nom, categorie: 'Importés', description: 'Modèle importé pour test.', conseil: '' }, geo);
       const m = MODELS.get(id);
-      if (Math.max(m.w, m.h) > M.partRadius * 2 || m.z > M.maxHeight) toast('Attention : ce modèle dépasse le volume de la Neva');
+      if (!fitsAlone(m)) toast(`Attention : ce modèle dépasse le volume de ${laMachine()}`);
       else toast(`« ${nom} » ajouté au catalogue`);
       S.cat = 'Importés'; S.preview = id; S.step = 1;
       dlg.close('cancel');
@@ -1055,29 +1141,118 @@
       <circle class="fp" cx="0" cy="42" r="3"/>
       <ellipse class="fa" cx="0" cy="58" rx="24" ry="4"/>
       ${extra}</g>`;
+  const vyper = (x, y, s = 1, extra = '') => `<g transform="translate(${x} ${y}) scale(${s})">
+      <path class="fsoft" d="M-36 58 H36 V70 H-36 Z"/><path class="s" d="M-36 58 H36 V70 H-36 Z"/>
+      <rect class="fa" x="16" y="61" width="14" height="6" rx="1"/>
+      <path class="s" d="M-30 58 V-8 M30 58 V-8 M-33 -8 H33"/>
+      <path class="s" d="M-30 18 H30"/><rect class="fs s" x="-6" y="12" width="12" height="12" rx="2"/>
+      <circle class="fp" cx="0" cy="28" r="2.6"/>
+      <path class="fa" d="M-26 50 H26 L22 55 H-22 Z"/>
+      ${extra}</g>`;
+  const printerArt = (x, y, s) => (M.kind === 'delta' ? neva : vyper)(x, y, s);
   const laptop = (x, y) => `<g transform="translate(${x} ${y})"><rect class="fs s" x="0" y="0" width="64" height="40" rx="3"/><path class="s" d="M-8 46 H72 L66 40 H-2 Z"/></g>`;
   const sdCard = (x, y, r = 0) => `<g transform="translate(${x} ${y}) rotate(${r})"><path class="fp" d="M0 0 H14 L18 4 V24 H0 Z"/><path class="s" d="M0 0 H14 L18 4 V24 H0 Z"/><path class="t" d="M4 3 V8 M8 3 V8 M12 3 V8" style="stroke:#fff;opacity:.9"/></g>`;
   const fileIcon = (x, y, label) => `<g transform="translate(${x} ${y})"><path class="fs s" d="M0 0 H18 L26 8 V34 H0 Z"/><path class="t" d="M5 15 H21 M5 21 H21 M5 27 H15"/>${label ? `<text x="13" y="46" text-anchor="middle">${esc(label)}</text>` : ''}</g>`;
   const arrow = (d) => `<path class="sa" d="${d}"/>`;
   const W = (inner) => `<svg viewBox="0 0 168 112" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
   const ILLO = {
-    sdChoice: () => `<svg viewBox="0 0 96 96" class="illo">${sdCard(10, 38)}${arrow('M34 50 H50 M45 45 L50 50 L45 55')}${neva(72, 14, 0.62)}</svg>`,
-    usbChoice: () => `<svg viewBox="0 0 96 96" class="illo">${laptop(6, 30).replace('width="64" height="40"', 'width="34" height="24"').replace('M-8 46 H72 L66 40 H-2 Z', 'M-4 30 H38 L35 24 H-1 Z')}<path class="sa" d="M42 58 C 52 58, 52 74, 64 74"/>${neva(76, 14, 0.62)}</svg>`,
+    sdChoice: () => `<svg viewBox="0 0 96 96" class="illo">${sdCard(10, 38)}${arrow('M34 50 H50 M45 45 L50 50 L45 55')}${printerArt(72, 14, 0.62)}</svg>`,
+    usbChoice: () => `<svg viewBox="0 0 96 96" class="illo">${laptop(6, 30).replace('width="64" height="40"', 'width="34" height="24"').replace('M-8 46 H72 L66 40 H-2 Z', 'M-4 30 H38 L35 24 H-1 Z')}<path class="sa" d="M42 58 C 52 58, 52 74, 64 74"/>${printerArt(76, 14, 0.62)}</svg>`,
     download: (file) => W(`${laptop(30, 30)}${fileIcon(50, 6, '')}${arrow('M63 50 V64 M57 58 L63 64 L69 58')}<text x="84" y="104" text-anchor="middle">${esc(file)}</text>`),
     cardIn: () => W(`${laptop(70, 34)}<rect class="fsoft s" x="34" y="60" width="26" height="14" rx="3"/><path class="s" d="M60 67 H70"/>${sdCard(38, 20)}${arrow('M47 48 V58')}`),
     copy: (file) => W(`${fileIcon(18, 26, file)}${arrow('M54 44 H96 M90 38 L96 44 L90 50')}<path class="fsoft s" d="M106 26 H128 L134 32 H150 V66 H106 Z"/>${sdCard(119, 36)}<text x="128" y="84" text-anchor="middle">carte SD</text>`),
     eject: () => W(`<path class="fa" d="M84 22 L106 46 H62 Z"/><rect class="fa" x="62" y="52" width="44" height="8" rx="2"/>${sdCard(74, 72)}`),
-    cardToNeva: () => W(`${neva(100, 20, 1)}${sdCard(24, 70)}${arrow('M46 82 H64 M58 76 L64 82 L58 88')}`),
-    prepare: () => W(`<circle class="fp" cx="40" cy="56" r="26"/><circle class="s" cx="40" cy="56" r="26"/><circle class="fs s" cx="40" cy="56" r="8"/><path class="s" d="M40 30 C 70 18, 92 30, 112 40"/>${neva(124, 20, 0.9)}`),
+    cardToPrinter: () => W(`${printerArt(100, 20, 1)}${sdCard(24, 70)}${arrow('M46 82 H64 M58 76 L64 82 L58 88')}`),
+    prepare: () => W(`<circle class="fp" cx="40" cy="56" r="26"/><circle class="s" cx="40" cy="56" r="26"/><circle class="fs s" cx="40" cy="56" r="8"/><path class="s" d="M40 30 C 70 18, 92 30, 112 40"/>${printerArt(124, 20, 0.9)}`),
     button: () => W(`${neva(66, 18, 1)}<circle class="fs s" cx="128" cy="78" r="12"/><circle class="fa" cx="128" cy="78" r="6"/><path class="s" d="M140 98 L132 86 M146 92 L134 84"/><text x="128" y="106" text-anchor="middle">1 appui</text>`),
+    screen: (file) => W(`<rect class="fs s" x="34" y="10" width="100" height="78" rx="6"/><rect class="fsoft" x="42" y="18" width="84" height="12" rx="2"/><text x="48" y="27">Imprimer</text><rect class="fa" x="42" y="36" width="84" height="14" rx="2"/><text x="48" y="46" style="fill:var(--accent-ink)">${esc(file)}</text><path class="t" d="M48 60 H110 M48 70 H96"/><path class="s" d="M118 98 L110 84 M126 92 L114 80"/>`),
     collect: () => W(`<ellipse class="fa" cx="84" cy="80" rx="62" ry="10"/><rect class="fp" x="56" y="58" width="18" height="18" rx="2"/><path class="fp" d="M90 76 L100 54 L110 76 Z"/><path class="s" d="M124 64 L104 74"/><rect class="fs s" x="122" y="54" width="30" height="12" rx="3" transform="rotate(-24 137 60)"/><text x="40" y="30">refroidir</text><path class="s" d="M24 16 V34 M24 16 a4 4 0 0 1 8 0 V34" /><circle class="fa" cx="28" cy="38" r="6"/>`),
-    cable: () => W(`${laptop(12, 34)}<path class="sa" d="M84 74 C 100 74, 100 92, 118 92"/>${neva(132, 20, 0.9)}`),
+    cable: () => W(`${laptop(12, 34)}<path class="sa" d="M84 74 C 100 74, 100 92, 118 92"/>${printerArt(132, 20, 0.9)}`),
     connect: () => W(`<rect class="fs s" x="24" y="16" width="120" height="80" rx="6"/><path class="s" d="M24 32 H144"/><text x="34" y="27">Choisir un port série</text><rect class="fa" x="34" y="42" width="100" height="16" rx="3"/><text x="40" y="53" style="fill:var(--accent-ink)">USB Serial (COM3)</text><path class="t" d="M40 70 H110"/><rect class="fsoft s" x="100" y="76" width="36" height="14" rx="3"/>`),
     play: () => W(`<circle class="fa" cx="56" cy="56" r="26"/><path d="M50 44 L66 56 L50 68 Z" style="fill:var(--accent-ink)"/><rect class="fsoft" x="94" y="50" width="56" height="10" rx="5"/><rect class="fp" x="94" y="50" width="30" height="10" rx="5"/><text x="94" y="78">avancement</text>`),
     awake: () => W(`${laptop(52, 30)}<circle class="fs s" cx="84" cy="50" r="12"/><path class="s" d="M84 42 V50 L90 54"/><path class="s" d="M30 20 L46 36 M46 20 L30 36" style="stroke:var(--bad)"/><path class="t" d="M30 28 a9 9 0 1 0 12 -10 a7 7 0 0 1 -12 10"/>`)
   };
 
-  /* ---------------- démarrage ---------------- */
+  /* ---------------- choix de l'imprimante ---------------- */
+  const ART = {
+    // dessins au trait, fond transparent ; remplaçables par imprimantes/<id>.png
+    neva: `<svg viewBox="0 0 240 280" aria-hidden="true" class="pdraw">
+      <ellipse class="ps" cx="120" cy="34" rx="34" ry="10"/><path class="pl" d="M86 34 V44 M154 34 V44"/>
+      <path class="pf" d="M40 64 L120 50 L200 64 L120 78 Z"/>
+      <path class="pl" d="M48 66 V236 M192 66 V236 M120 76 V230"/>
+      <path class="pt" d="M48 130 L112 172 M192 130 L128 172 M120 118 L120 166"/>
+      <path class="pa" d="M110 170 H130 L124 184 H116 Z"/><circle class="pp" cx="120" cy="190" r="4"/>
+      <ellipse class="pb" cx="120" cy="228" rx="70" ry="13"/>
+      <path class="pf" d="M36 236 H204 L196 256 H44 Z"/>
+      <rect class="pp" x="108" y="210" width="24" height="14" rx="2"/>
+    </svg>`,
+    vyper: `<svg viewBox="0 0 280 280" aria-hidden="true" class="pdraw">
+      <ellipse class="ps" cx="140" cy="28" rx="30" ry="9"/><path class="pl" d="M110 28 V38 M170 28 V38"/>
+      <path class="pl" d="M50 44 H230 M58 44 V214 M222 44 V214"/>
+      <path class="pl" d="M58 118 H222"/><rect class="pf" x="126" y="106" width="28" height="26" rx="3"/>
+      <path class="pa" d="M134 132 H146 L142 142 H138 Z"/><circle class="pp" cx="140" cy="148" r="4"/>
+      <path class="pb" d="M70 196 H210 L226 214 H54 Z"/>
+      <rect class="pp" x="122" y="180" width="36" height="16" rx="2"/>
+      <path class="pf" d="M36 214 H244 V246 H36 Z"/>
+      <rect class="pa" x="180" y="221" width="46" height="18" rx="3"/>
+    </svg>`
+  };
+  function renderSplash() {
+    const last = store.last;
+    $('#splashCards').innerHTML = Object.keys(PRINTERS).map(id => {
+      const P = PRINTERS[id], prof = NevaSlicer.PROFILES[id];
+      return `<button type="button" class="pcard" data-printer="${id}">
+        ${id === last ? '<span class="lastused">Utilisée la dernière fois</span>' : ''}
+        <span class="pimg" data-pimg="${id}">${ART[id]}</span>
+        <span class="pname"><small>${esc(P.marque)}</small>${esc(P.short)}</span>
+        <span class="pspec">${esc(P.plateau)}</span>
+        <span class="pinfos">${P.infos.map(esc).join(' · ')}</span>
+      </button>`;
+    }).join('');
+    // photo détourée facultative : imprimantes/<id>.png
+    Object.keys(PRINTERS).forEach(id => {
+      const img = new Image();
+      img.onload = () => { const el = document.querySelector(`[data-pimg="${id}"]`); if (el) { el.innerHTML = ''; img.alt = ''; el.appendChild(img); } };
+      img.src = `imprimantes/${id}.png`;
+    });
+  }
+  function showSplash() {
+    renderSplash();
+    $('#splash').hidden = false;
+    const btn = document.querySelector(`[data-printer="${store.last || 'neva'}"]`);
+    if (btn) btn.focus();
+  }
+  function selectPrinter(id) {
+    if (PRINTER.printing) { toast('Attendez la fin de l’impression en cours'); return; }
+    M = NevaSlicer.PROFILES[id];
+    store.last = id;
+    loadCfg(); saveCfg();
+    $('#printerName').textContent = M.name;
+    $('#printerBed').textContent = bedText();
+    // les pièces qui ne tiennent plus sur ce plateau sont retirées
+    const next = new Map([...S.basket].filter(([mid]) => fitsAlone(MODELS.get(mid))));
+    const removed = S.basket.size - next.size;
+    S.basket = next;
+    S.layout = computeLayout(S.basket);
+    let cleared = false;
+    if (S.layout.failed.length) { S.basket = new Map(); S.layout = { placed: [], failed: [] }; cleared = true; }
+    S.preview = null; S.sel = null; S.step = 1;
+    if (!USB.ok) S.mode = 'sd'; else if (S.mode === 'usb') S.mode = null;
+    invalidateSlice();
+    V.buildPrinter(); V.applyTheme();
+    V.showLayout(S.layout); V.framePlate();
+    $('#splash').hidden = true;
+    renderAll();
+    toast(cleared ? `${M.name} : les pièces ne tenaient pas toutes sur ce plateau, il a été vidé`
+      : removed ? `${M.name} : ${removed} modèle(s) trop grand(s) retiré(s) du plateau` : `${M.name} sélectionnée`);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-printer]');
+    if (b) selectPrinter(b.dataset.printer);
+    if (e.target.closest('#changePrinter')) showSplash();
+  });
+
+  /* ---------------- démarrage ---------------- */  /* ---------------- démarrage ---------------- */
   async function start() {
     if (!USB.ok) S.mode = 'sd';
     V.init();
@@ -1090,6 +1265,7 @@
     V.showLayout(S.layout);
     V.framePlate();
     renderThumbs();
+    showSplash();
   }
   start();
 })();

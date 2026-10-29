@@ -96,8 +96,8 @@ npm start            # lancer en développement
 npm run dist:linux   # ou dist:mac / dist:win
 ```
 
-Pour publier une nouvelle version : changer `version` dans `package.json`, puis
-`git tag v1.0.1 && git push origin v1.0.1`. Le workflow GitHub Actions construit macOS, Windows et Linux et crée la release.
+Pour publier une nouvelle version : changer `version` dans `package.json` et pousser sur `main`.
+Le workflow GitHub Actions construit macOS, Windows et Linux et crée la release `v<version>`.
 
 ## Organisation du dépôt
 

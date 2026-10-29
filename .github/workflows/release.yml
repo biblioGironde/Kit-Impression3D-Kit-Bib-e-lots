@@ -1,9 +1,14 @@
 # Construit l'application de bureau (macOS, Windows, Linux) et publie une release GitHub
-# à chaque étiquette « v* » (ex. : git tag v1.0.1 && git push origin v1.0.1).
+# « v<version> » (version lue dans package.json). Déclenchement :
+#  - à chaque modification de package.json sur main (changer « version » pour publier),
+#  - à chaque étiquette « v* »,
+#  - à la main depuis l'onglet Actions.
 name: Release Electron
 
 on:
   push:
+    branches: [main]
+    paths: ['package.json', '.github/workflows/release.yml']
     tags: ['v*']
   workflow_dispatch:
 

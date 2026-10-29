@@ -1,6 +1,8 @@
 # Kit bib-e-lots - Atelier Impression 3D
 
-![Atelier Neva : choix des modèles dans la catégorie « Objets en Bib », avec l’aperçu 3D sur le plateau de la Neva](docs/capture.png)
+![Écran d’accueil : choix de l’imprimante, Dagoma Neva ou Anycubic Vyper](docs/accueil.png)
+
+![Choix des modèles « Objets en Bib » placés automatiquement sur le plateau de la Vyper](docs/capture.png)
 
 Application web pour imprimer en 3D sans connaître le slicing, sur **Dagoma Neva** ou **Anycubic Vyper**.
 Au lancement, l'usager touche l'imprimante posée devant lui ; l'atelier s'adapte à son plateau et à son mode d'emploi.
@@ -19,18 +21,18 @@ Les versions de bureau sont dans les [Releases](https://github.com/biblioGironde
 
 | Système | Fichier |
 |---|---|
-| macOS (Apple Silicon M1–M4) | `Atelier-Neva-…-mac-arm64.dmg` |
-| macOS (Intel) | `Atelier-Neva-…-mac-x64.dmg` |
-| Windows | `Atelier-Neva-…-windows-installation.exe` (installeur) ou `…-windows-portable.exe` (sans installation) |
-| Linux | `Atelier-Neva-…-linux-x86_64.AppImage` ou `.tar.gz` |
+| macOS (Apple Silicon M1–M4) | `Atelier-Impression3D-…-mac-arm64.dmg` |
+| macOS (Intel) | `Atelier-Impression3D-…-mac-x64.dmg` |
+| Windows | `Atelier-Impression3D-…-windows-installation.exe` (installeur) ou `…-windows-portable.exe` (sans installation) |
+| Linux | `Atelier-Impression3D-…-linux-x86_64.AppImage` ou `.tar.gz` |
 
 L'application de bureau fonctionne **hors ligne** et propose toujours le **câble USB**, quel que soit le navigateur installé.
 
 Les applications ne sont pas signées :
 
-- **macOS** : au premier lancement, clic droit sur l'application → **Ouvrir**, puis confirmer. Si macOS indique que l'application est « endommagée », lancer dans le Terminal : `xattr -cr "/Applications/Atelier Neva.app"`.
+- **macOS** : au premier lancement, clic droit sur l'application → **Ouvrir**, puis confirmer. Si macOS indique que l'application est « endommagée », lancer dans le Terminal : `xattr -cr "/Applications/Atelier Impression 3D.app"`.
 - **Windows** : si SmartScreen s'affiche, cliquer sur **Informations complémentaires** → **Exécuter quand même**.
-- **Linux** : rendre l'AppImage exécutable (`chmod +x Atelier-Neva-*.AppImage`).
+- **Linux** : rendre l'AppImage exécutable (`chmod +x Atelier-Impression3D-*.AppImage`).
 
 ## Version web
 

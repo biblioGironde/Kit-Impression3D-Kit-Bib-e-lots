@@ -478,7 +478,7 @@
       // en-tête lu par le firmware Ultimaker (valeurs complétées en fin de découpe)
       [';START_OF_HEADER', ';HEADER_VERSION:0.1', ';FLAVOR:Griffin',
        // version à trois nombres (x.y.z) : une version courte peut faire planter le firmware
-       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.2.1', ';GENERATOR.BUILD_DATE:2026-10-29',
+       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.2.2', ';GENERATOR.BUILD_DATE:2026-10-30',
        ';TARGET_MACHINE.NAME:' + M.name,
        ';EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:' + M.temp,
        ';EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:{{VOL}}',

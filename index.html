@@ -270,6 +270,7 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
 .pdraw .pa { fill: var(--ink); }
 .pdraw .pp { fill: var(--pla); }
 .pdraw .ps { fill: var(--pla); opacity: .85; }
+.hidden-note { margin: -8px 0 0; }
 .toobig { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--bad); }
 p.toobig { font-size: 13.5px; margin: 8px 0 0; }
 
@@ -877,7 +878,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
       // en-tête lu par le firmware Ultimaker (valeurs complétées en fin de découpe)
       [';START_OF_HEADER', ';HEADER_VERSION:0.1', ';FLAVOR:Griffin',
        // version à trois nombres (x.y.z) : une version courte peut faire planter le firmware
-       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.1.1', ';GENERATOR.BUILD_DATE:2026-10-29',
+       ';GENERATOR.NAME:Atelier Impression 3D', ';GENERATOR.VERSION:2.2.0', ';GENERATOR.BUILD_DATE:2026-10-29',
        ';TARGET_MACHINE.NAME:' + M.name,
        ';EXTRUDER_TRAIN.0.INITIAL_TEMPERATURE:' + M.temp,
        ';EXTRUDER_TRAIN.0.MATERIAL.VOLUME_USED:{{VOL}}',
@@ -1199,15 +1200,15 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
       return [
         { id: 'presentoir-incline', nom: 'Présentoir de livre incliné', categorie: C,
           description: 'Présente un livre ouvert ou fermé, couverture visible.', conseil: 'Choisissez la taille du rebord selon l’épaisseur du livre.',
-          variantes: [v('mitabula-10', 'rebord 10 mm'), v('mitabula-20', 'rebord 20 mm'), v('mitabula-30', 'rebord 30 mm'), v('mitabula-40', 'rebord 40 mm')],
+          variantes: [10, 15, 20, 25, 30, 35, 40].map(n => v('mitabula-' + n, 'rebord ' + n + ' mm')),
           credit: { auteur: 'Mitabula', licence: 'CC BY-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:7050021' } },
         { id: 'chevalet', nom: 'Chevalet de présentation', categorie: C,
           description: 'Chevalet en A pour livres, affiches ou tablettes.', conseil: 'La taille indique l’épaisseur maximale acceptée.',
-          variantes: [v('display-stand-25', '25 mm'), v('display-stand-45', '45 mm'), v('display-stand-65', '65 mm')],
+          variantes: [25, 35, 45, 55, 65, 75, 85].map(n => v('display-stand-' + n, n + ' mm')),
           credit: { auteur: 'OtakuMx', licence: 'CC BY-SA', source: 'MakerWorld', url: 'https://makerworld.com/fr/models/550731' } },
         { id: 'presentoir-couverture', nom: 'Présentoir couverture', categorie: C,
           description: 'Support bas pour mettre une nouveauté en avant sur une table.', conseil: 'La taille indique l’épaisseur du livre.',
-          variantes: [v('display-1342040-18', '18 mm'), v('display-1342040-21', '21 mm'), v('display-1342040-24', '24 mm')],
+          variantes: [17, 18, 19, 20, 21, 22, 23, 24].map(n => v('display-1342040-' + n, n + ' mm')),
           credit: { auteur: 'Sandyz Printz', licence: 'CC BY-SA', source: 'Printables', url: 'https://www.printables.com/model/1342040' } },
         { id: 'presentoir-bd', nom: 'Présentoir BD et albums', categorie: C,
           description: 'Support incliné pour bandes dessinées et albums.', conseil: '',
@@ -1227,7 +1228,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
           credit: { auteur: 'ateldsign', licence: 'CC BY-SA', source: 'Printables', url: 'https://www.printables.com/model/446245' } },
         { id: 'serre-livre-chat', nom: 'Serre-livre chat', categorie: C,
           description: 'Serre-livre décoratif avec une silhouette de chat.', conseil: '',
-          fichier: D + 'cat-bookend-short.stl',
+          variantes: [v('cat-bookend-short', 'petit'), v('cat-bookend-tall', 'grand')],
           credit: { auteur: 'Bugsy515', licence: 'CC BY', source: 'Printables', url: 'https://www.printables.com/model/136174' } },
         { id: 'aligneur-rayon', nom: 'Aligneur de livres en rayon', categorie: C,
           description: 'Cale posée en fond de tablette pour aligner le dos des livres.', conseil: '',
@@ -1235,7 +1236,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
           credit: { auteur: 'James Holmes', licence: 'CC BY-NC-SA', source: 'MakerWorld', url: 'https://makerworld.com/fr/models/411207' } },
         { id: 'support-un-livre', nom: 'Support pour un livre', categorie: C,
           description: 'Gouttière qui tient un livre seul, debout.', conseil: 'Trois longueurs selon la hauteur du livre.',
-          variantes: [v('one-book-shelf-2', 'petit'), v('one-book-shelf-3', 'moyen'), v('one-book-shelf-4', 'grand')],
+          variantes: [v('one-book-shelf-2', 'petit'), v('one-book-shelf-3', 'moyen'), v('one-book-shelf-4', 'grand'), v('one-book-shelf-5', 'très grand')],
           credit: { auteur: 'miLAB_IDC', licence: 'CC BY', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:3464374' } },
         { id: 'etagere-invisible', nom: 'Étagère invisible', categorie: C,
           description: 'Se fixe au mur et se cache sous la pile de livres.', conseil: 'Vis de fixation non fournies.',
@@ -1253,7 +1254,61 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
         { id: 'raccord-hexagone', nom: 'Raccord d’étagère hexagonale', categorie: C,
           description: 'Raccords pour monter une étagère à vinyles en nid d’abeille.', conseil: 'Planches non fournies.',
           variantes: [v('hexagon-h', 'horizontal'), v('hexagon-v', 'vertical')],
-          credit: { auteur: 'ToniL81', licence: 'CC BY-NC-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:4899311' } }
+          credit: { auteur: 'ToniL81', licence: 'CC BY-NC-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:4899311' } },
+
+        /* modèles plus grands : visibles seulement sur les imprimantes où ils tiennent */
+        { id: 'serre-livre-crochet', nom: 'Serre-livre à crochet', categorie: C,
+          description: 'S’accroche au bord de la tablette pour tenir une rangée de livres.', conseil: '',
+          fichier: D + 'bookend-shelf-hook.stl',
+          credit: { auteur: 'seastara', licence: 'CC BY-NC', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:2161245' } },
+        { id: 'serre-livre-leger', nom: 'Serre-livre léger', categorie: C,
+          description: 'Serre-livre ajouré, rapide à imprimer.', conseil: '',
+          fichier: D + 'medium-lightweight-bookend.stl',
+          credit: { auteur: 'MagicSmokeSTAT', licence: 'CC BY-NC-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:4730051' } },
+        { id: 'serre-livre-emboitable', nom: 'Serre-livre emboîtable', categorie: C,
+          description: 'Cadre ajouré qui maintient une rangée de livres.', conseil: '',
+          fichier: D + 'book-shelf-plug-in.stl',
+          credit: { auteur: 'Michael / Bischoff AG', licence: 'CC BY-NC', source: 'Printables', url: 'https://www.printables.com/model/137641' } },
+        { id: 'separateur-rayon', nom: 'Séparateur de rayon', categorie: C,
+          description: 'Sépare deux rangées ou tient un livre debout.', conseil: '',
+          fichier: D + 'shelf-separator.stl',
+          credit: { auteur: 'bouddha', licence: 'CC BY', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:3120347' } },
+        { id: 'rehausseur-rayon', nom: 'Rehausseur de fond de rayon', categorie: C,
+          description: 'Surélève la rangée du fond pour que les dos des livres restent visibles.', conseil: '',
+          fichier: D + 'billy-riser.stl',
+          credit: { auteur: 'JWhittaker101', licence: 'CC BY-NC', source: 'MakerWorld', url: 'https://makerworld.com/fr/models/667410' } },
+        { id: 'pupitre-livre', nom: 'Pupitre pour livre ouvert', categorie: C,
+          description: 'Pupitre incliné pour lire ou présenter un livre ouvert.', conseil: '',
+          fichier: D + 'book-stand-6029750.stl',
+          credit: { auteur: 'XShocker427X', licence: 'CC BY-NC-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:6029750' } },
+        { id: 'lutrin-lecture', nom: 'Lutrin de lecture', categorie: C,
+          description: 'Lutrin en deux plaques croisées.', conseil: '',
+          fichier: D + 'book-stand-518600.stl',
+          credit: { auteur: 'Richard', licence: 'CC BY', source: 'Printables', url: 'https://www.printables.com/model/518600' } },
+        { id: 'presentoir-reglable', nom: 'Présentoir réglable', categorie: C,
+          description: 'Présentoir en pièces séparées, pour les grands livres.', conseil: 'Imprimez deux pieds et une traverse.',
+          variantes: [v('adjustable-leg', 'pied'), v('adjustable-brace', 'traverse')],
+          credit: { auteur: 'DDivs', licence: 'CC BY', source: 'Printables', url: 'https://www.printables.com/model/105553' } },
+        { id: 'presentoir-vague', nom: 'Présentoir vague', categorie: C,
+          description: 'Paroi ondulée qui présente un livre de face.', conseil: '',
+          fichier: D + 'wavey-book-stand.stl',
+          credit: { auteur: 'moWerk', licence: 'CC BY-NC-SA', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:6890678' } },
+        { id: 'presentoir-mural', nom: 'Présentoir mural', categorie: C,
+          description: 'Rebord à fixer au mur pour exposer un livre de face.', conseil: 'Vis de fixation non fournies.',
+          fichier: D + 'wall-display-stand.stl',
+          credit: { auteur: 'protohuf', licence: 'CC BY', source: 'Thingiverse', url: 'https://www.thingiverse.com/thing:4847665' } },
+        { id: 'etagere-livres-cuisine', nom: 'Étagère pour livres de cuisine', categorie: C,
+          description: 'Petite étagère murale pour quelques livres.', conseil: '',
+          fichier: D + 'cooking-book-shelf.stl',
+          credit: { auteur: 'Hegre Engineering', licence: 'CC BY', source: 'Printables', url: 'https://www.printables.com/model/151464' } },
+        { id: 'etagere-ronde', nom: 'Étagère arrondie', categorie: C,
+          description: 'Petite étagère aux bords arrondis.', conseil: '',
+          fichier: D + 'round-book-shelf.stl',
+          credit: { auteur: 'biehler-josef', licence: 'CC0', source: 'Printables', url: 'https://www.printables.com/model/818676' } },
+        { id: 'rangement-mangas', nom: 'Rangement mangas modulaire', categorie: C,
+          description: 'Cases empilables pour mangas ou petits livres, assemblées par des clips.', conseil: 'Imprimez les modules, puis les clips pour les assembler.',
+          variantes: [v('manga-main', 'module'), v('manga-side-clip', 'clip latéral'), v('manga-corner-2', 'clip d’angle, 2 côtés'), v('manga-corner-3', 'clip d’angle, 3 côtés'), v('manga-corner-4', 'clip d’angle, 4 côtés')],
+          credit: { auteur: 'Ystvan', licence: 'CC BY', source: 'Printables', url: 'https://www.printables.com/model/813488' } }
       ];
     })()
   ];
@@ -1879,11 +1934,30 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
         </div>
       </div>`;
   }
+  /* variantes d'un groupe qui tiennent sur le plateau de l'imprimante choisie
+     (les modèles importés restent visibles, avec une mention s'ils sont trop grands) */
+  const imported = m => m.entry.categorie === 'Importés';
+  const visibles = g => variantesDe(g).filter(m => imported(m) || fitsAlone(m));
+  function groupesVisibles() {
+    const seen = new Set(), out = [];
+    for (const m of MODELS.values()) {
+      const g = groupeDe(m);
+      if (seen.has(g)) continue;
+      seen.add(g);
+      const vs = visibles(g);
+      if (!vs.length) continue;
+      const cur = S.variant[g] && MODELS.get(S.variant[g]);
+      out.push(cur && vs.includes(cur) ? cur : vs[0]);
+    }
+    return out;
+  }
   function panelStep1() {
-    const cats = ['Tous', ...new Set([...MODELS.values()].map(m => m.entry.categorie))];
-    const seen = new Set();
-    const list = [...MODELS.values()].filter(m => (S.cat === 'Tous' || m.entry.categorie === S.cat) && !seen.has(groupeDe(m)) && seen.add(groupeDe(m)))
-      .map(m => { const g = groupeDe(m); const cur = S.variant[g] && MODELS.get(S.variant[g]); return cur || m; });
+    const all = groupesVisibles();
+    const cats = ['Tous', ...new Set(all.map(m => m.entry.categorie))];
+    if (!cats.includes(S.cat)) S.cat = 'Tous';
+    const list = all.filter(m => S.cat === 'Tous' || m.entry.categorie === S.cat);
+    const groupsInCat = new Set([...MODELS.values()].filter(m => S.cat === 'Tous' || m.entry.categorie === S.cat).map(groupeDe));
+    const masques = groupsInCat.size - list.length;
     const prev = S.preview && MODELS.get(S.preview);
     return `
       <div>
@@ -1894,9 +1968,10 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
       <div class="chips" role="group" aria-label="Catégories">
         ${cats.map(c => `<button type="button" class="chip" data-cat="${esc(c)}" aria-pressed="${c === S.cat}">${esc(c)}</button>`).join('')}
       </div>
+      ${masques ? `<p class="note hidden-note">${masques} modèle${masques > 1 ? 's' : ''} plus grand${masques > 1 ? 's' : ''} que le plateau de ${laMachine()} ${masques > 1 ? 'sont masqués' : 'est masqué'}.</p>` : ''}
       <div class="cards">
         ${list.map(m => {
-          const vs = variantesDe(groupeDe(m));
+          const vs = visibles(groupeDe(m));
           const q = vs.reduce((a, x) => a + (S.basket.get(x.entry.id) || 0), 0);
           const cur = S.preview && MODELS.get(S.preview) && groupeDe(MODELS.get(S.preview)) === groupeDe(m);
           return `<button type="button" class="card" data-preview="${esc(m.entry.id)}" aria-current="${!!cur}">
@@ -2102,12 +2177,12 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
     top.innerHTML = ''; bottom.innerHTML = '';
     if (S.step === 1) {
       const m = S.preview && MODELS.get(S.preview);
-      const vs = m ? variantesDe(groupeDe(m)) : [];
+      const vs = m ? visibles(groupeDe(m)) : [];
       if (m) top.innerHTML = `<div class="tag"><strong>${esc(m.entry.nom)}</strong><div class="dims">${dimsText(m)} · ${esc(m.entry.categorie)}</div>
           ${vs.length > 1 ? `<div class="variants" role="group" aria-label="Variante">${vs.map(x => `<button type="button" class="chip" data-variant="${esc(x.entry.id)}" aria-pressed="${x === m}">${esc(x.entry.variante)}</button>`).join('')}</div>` : ''}
           <p>${esc(m.entry.description)}${m.entry.conseil ? ' ' + esc(m.entry.conseil) : ''}</p>
           ${creditHtml(m)}
-          ${fitsAlone(m) ? `<button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button>` : `<p class="toobig">Trop grand pour ${laMachine()}${vs.length > 1 ? ' : essayez une autre variante' : ''}.</p>`}</div>
+          ${fitsAlone(m) ? `<button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button>` : `<p class="toobig">Trop grand pour ${laMachine()}.</p>`}</div>
         <button type="button" class="iconbtn" data-act="show-plate">Voir tout le plateau</button>`;
       else top.innerHTML = selTag() || `<div class="tag"><strong>Plateau de ${laMachine()}</strong><div class="dims">${esc(bedText())} · zone utile en pointillés${S.layout.placed.length ? ' · touchez une pièce pour la sélectionner' : ''}</div></div>`;
     }
@@ -2562,6 +2637,7 @@ p.toobig { font-size: 13.5px; margin: 8px 0 0; }
     S.layout = computeLayout(S.basket);
     let cleared = false;
     if (S.layout.failed.length) { S.basket = new Map(); S.layout = { placed: [], failed: [] }; cleared = true; }
+    for (const g of Object.keys(S.variant)) { const vm = MODELS.get(S.variant[g]); if (!vm || !fitsAlone(vm)) delete S.variant[g]; }
     S.preview = null; S.sel = null; S.step = 1;
     if (!usbOk()) S.mode = 'sd'; else if (S.mode === 'usb') S.mode = null;
     invalidateSlice();

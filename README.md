@@ -136,13 +136,16 @@ Les durées sont estimées à partir des vitesses programmées. L'écart réel e
 
 ## Catégorie « Objets en Bib »
 
-15 objets pour la bibliothèque (présentoirs, serre-livres, étagères invisibles, signalétique), soit 29 fichiers STL dans `modeles/objets-en-bib/`.
-Certains objets ont plusieurs variantes (tailles, côté gauche/droit) : on les choisit sur la fiche du modèle.
+27 objets pour la bibliothèque (présentoirs, serre-livres, rehausseurs, étagères, rangement mangas, signalétique), soit 61 fichiers STL dans `modeles/objets-en-bib/`.
+Beaucoup existent en plusieurs tailles ou pièces : on les choisit sur la fiche du modèle.
+
+**Le catalogue s'adapte à l'imprimante choisie** : les objets et les tailles qui ne tiennent pas sur son plateau sont masqués, avec une phrase qui indique combien le sont.
+Sur la Neva (Ø 180 mm), 16 objets sont visibles ; sur la Vyper et la S7, les 27.
 
 Tous sont sous licence Creative Commons. L'auteur, la licence et le lien source s'affichent sur chaque fiche ; le détail est dans `modeles/objets-en-bib/CREDITS.md`.
-Les modèles MakerWorld sous « Standard Digital File License » n'ont pas été intégrés : leur licence interdit de redistribuer les fichiers.
-
-La plupart de ces objets occupent une grande partie du plateau (Ø 180 mm) : comptez souvent un ou deux objets par impression.
+Non intégrés :
+- les modèles MakerWorld sous « Standard Digital File License » ou « MakerWorld Exclusive License » : leur licence interdit de redistribuer les fichiers ;
+- le présentoir en kit 312025 (une pièce ne s'imprime que debout sur une arête fine) et le serre-livre hibou (maillage trop lourd pour le navigateur).
 
 ## Construire l'application de bureau
 

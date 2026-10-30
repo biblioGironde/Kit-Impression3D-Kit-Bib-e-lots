@@ -264,6 +264,12 @@ dialog::backdrop { background: rgb(10 15 20 / .45); }
 .pdraw .pp { fill: var(--pla); }
 .pdraw .ps { fill: var(--pla); opacity: .85; }
 .hidden-note { margin: -8px 0 0; }
+.photos-link { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--accent-soft); color: var(--ink); text-decoration: none; }
+.photos-link svg { color: var(--accent); flex: none; }
+.photos-link span:not(.arrow) { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.photos-link small { color: var(--muted); font-size: 13px; }
+.photos-link .arrow { margin-left: auto; color: var(--accent); font-size: 18px; }
+.photos-link:hover { border-color: var(--accent); }
 .toobig { display: block; margin-top: 4px; font-size: 12px; font-weight: 700; color: var(--bad); }
 p.toobig { font-size: 13.5px; margin: 8px 0 0; }
 

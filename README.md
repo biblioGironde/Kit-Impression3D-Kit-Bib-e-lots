@@ -142,6 +142,8 @@ Beaucoup existent en plusieurs tailles ou pièces : on les choisit sur la fiche 
 **Le catalogue s'adapte à l'imprimante choisie** : les objets et les tailles qui ne tiennent pas sur son plateau sont masqués, avec une phrase qui indique combien le sont.
 Sur la Neva (Ø 180 mm), 15 objets sont visibles (dont 3 dans certaines tailles seulement) ; sur la Vyper et la S7, les 26.
 
+En tête de la catégorie, le bouton **Voir des photos des objets** ouvre `modeles/objets-en-bib/Objets-en-Bib-catalogue.pdf` : une photo d'usage par objet, avec les imprimantes compatibles.
+
 Tous sont sous licence Creative Commons. L'auteur, la licence et le lien source s'affichent sur chaque fiche ; le détail est dans `modeles/objets-en-bib/CREDITS.md`.
 Non intégrés :
 - les modèles MakerWorld sous « Standard Digital File License » ou « MakerWorld Exclusive License » : leur licence interdit de redistribuer les fichiers ;

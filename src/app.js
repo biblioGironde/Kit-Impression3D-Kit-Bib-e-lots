@@ -630,6 +630,10 @@
       <div class="chips" role="group" aria-label="Catégories">
         ${cats.map(c => `<button type="button" class="chip" data-cat="${esc(c)}" aria-pressed="${c === S.cat}">${esc(c)}</button>`).join('')}
       </div>
+      ${S.cat === 'Objets en Bib' ? `<a class="photos-link" href="modeles/objets-en-bib/Objets-en-Bib-catalogue.pdf" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>
+        <span><b>Voir des photos des objets</b><small>Catalogue PDF : chaque objet imprimé et utilisé en bibliothèque</small></span>
+        <span class="arrow" aria-hidden="true">↗</span></a>` : ''}
       ${masques ? `<p class="note hidden-note">${masques} modèle${masques > 1 ? 's' : ''} plus grand${masques > 1 ? 's' : ''} que le plateau de ${laMachine()} ${masques > 1 ? 'sont masqués' : 'est masqué'}.</p>` : ''}
       <div class="cards">
         ${list.map(m => {

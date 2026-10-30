@@ -1228,7 +1228,7 @@
 
   /* ---------------- choix de l'imprimante ---------------- */
   const ART = {
-    // dessins au trait, fond transparent ; remplaçables par imprimantes/<id>.png
+    // dessins au trait de secours si imprimantes/<id>.png est absent
     neva: `<svg viewBox="0 0 240 280" aria-hidden="true" class="pdraw">
       <ellipse class="ps" cx="120" cy="34" rx="34" ry="10"/><path class="pl" d="M86 34 V44 M154 34 V44"/>
       <path class="pf" d="M40 64 L120 50 L200 64 L120 78 Z"/>
@@ -1267,17 +1267,15 @@
       return `<button type="button" class="pcard" data-printer="${id}">
         ${id === last ? '<span class="lastused">Utilisée la dernière fois</span>' : ''}
         ${P.aTester ? '<span class="atester">Profil à tester</span>' : ''}
-        <span class="pimg" data-pimg="${id}">${ART[id]}</span>
+        <span class="pimg" data-pimg="${id}"><img alt="" src="imprimantes/${id}.png"></span>
         <span class="pname"><small>${esc(P.marque)}</small>${esc(P.short)}</span>
         <span class="pspec">${esc(P.plateau)}</span>
         <span class="pinfos">${P.infos.map(esc).join(' · ')}</span>
       </button>`;
     }).join('');
-    // photo détourée facultative : imprimantes/<id>.png
-    Object.keys(PRINTERS).forEach(id => {
-      const img = new Image();
-      img.onload = () => { const el = document.querySelector(`[data-pimg="${id}"]`); if (el) { el.innerHTML = ''; img.alt = ''; el.appendChild(img); } };
-      img.src = `imprimantes/${id}.png`;
+    // photo de l'imprimante (fond transparent) ; dessin au trait si l'image manque
+    document.querySelectorAll('#splashCards .pimg img').forEach(img => {
+      img.onerror = () => { const el = img.parentElement; if (el) el.innerHTML = ART[el.dataset.pimg] || ''; };
     });
   }
   let printerChosen = false;

@@ -596,11 +596,30 @@
         </div>
       </div>`;
   }
+  /* variantes d'un groupe qui tiennent sur le plateau de l'imprimante choisie
+     (les modèles importés restent visibles, avec une mention s'ils sont trop grands) */
+  const imported = m => m.entry.categorie === 'Importés';
+  const visibles = g => variantesDe(g).filter(m => imported(m) || fitsAlone(m));
+  function groupesVisibles() {
+    const seen = new Set(), out = [];
+    for (const m of MODELS.values()) {
+      const g = groupeDe(m);
+      if (seen.has(g)) continue;
+      seen.add(g);
+      const vs = visibles(g);
+      if (!vs.length) continue;
+      const cur = S.variant[g] && MODELS.get(S.variant[g]);
+      out.push(cur && vs.includes(cur) ? cur : vs[0]);
+    }
+    return out;
+  }
   function panelStep1() {
-    const cats = ['Tous', ...new Set([...MODELS.values()].map(m => m.entry.categorie))];
-    const seen = new Set();
-    const list = [...MODELS.values()].filter(m => (S.cat === 'Tous' || m.entry.categorie === S.cat) && !seen.has(groupeDe(m)) && seen.add(groupeDe(m)))
-      .map(m => { const g = groupeDe(m); const cur = S.variant[g] && MODELS.get(S.variant[g]); return cur || m; });
+    const all = groupesVisibles();
+    const cats = ['Tous', ...new Set(all.map(m => m.entry.categorie))];
+    if (!cats.includes(S.cat)) S.cat = 'Tous';
+    const list = all.filter(m => S.cat === 'Tous' || m.entry.categorie === S.cat);
+    const groupsInCat = new Set([...MODELS.values()].filter(m => S.cat === 'Tous' || m.entry.categorie === S.cat).map(groupeDe));
+    const masques = groupsInCat.size - list.length;
     const prev = S.preview && MODELS.get(S.preview);
     return `
       <div>
@@ -611,9 +630,10 @@
       <div class="chips" role="group" aria-label="Catégories">
         ${cats.map(c => `<button type="button" class="chip" data-cat="${esc(c)}" aria-pressed="${c === S.cat}">${esc(c)}</button>`).join('')}
       </div>
+      ${masques ? `<p class="note hidden-note">${masques} modèle${masques > 1 ? 's' : ''} plus grand${masques > 1 ? 's' : ''} que le plateau de ${laMachine()} ${masques > 1 ? 'sont masqués' : 'est masqué'}.</p>` : ''}
       <div class="cards">
         ${list.map(m => {
-          const vs = variantesDe(groupeDe(m));
+          const vs = visibles(groupeDe(m));
           const q = vs.reduce((a, x) => a + (S.basket.get(x.entry.id) || 0), 0);
           const cur = S.preview && MODELS.get(S.preview) && groupeDe(MODELS.get(S.preview)) === groupeDe(m);
           return `<button type="button" class="card" data-preview="${esc(m.entry.id)}" aria-current="${!!cur}">
@@ -819,12 +839,12 @@
     top.innerHTML = ''; bottom.innerHTML = '';
     if (S.step === 1) {
       const m = S.preview && MODELS.get(S.preview);
-      const vs = m ? variantesDe(groupeDe(m)) : [];
+      const vs = m ? visibles(groupeDe(m)) : [];
       if (m) top.innerHTML = `<div class="tag"><strong>${esc(m.entry.nom)}</strong><div class="dims">${dimsText(m)} · ${esc(m.entry.categorie)}</div>
           ${vs.length > 1 ? `<div class="variants" role="group" aria-label="Variante">${vs.map(x => `<button type="button" class="chip" data-variant="${esc(x.entry.id)}" aria-pressed="${x === m}">${esc(x.entry.variante)}</button>`).join('')}</div>` : ''}
           <p>${esc(m.entry.description)}${m.entry.conseil ? ' ' + esc(m.entry.conseil) : ''}</p>
           ${creditHtml(m)}
-          ${fitsAlone(m) ? `<button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button>` : `<p class="toobig">Trop grand pour ${laMachine()}${vs.length > 1 ? ' : essayez une autre variante' : ''}.</p>`}</div>
+          ${fitsAlone(m) ? `<button type="button" class="btn primary" data-inc="${esc(m.entry.id)}">+ Ajouter au plateau</button>` : `<p class="toobig">Trop grand pour ${laMachine()}.</p>`}</div>
         <button type="button" class="iconbtn" data-act="show-plate">Voir tout le plateau</button>`;
       else top.innerHTML = selTag() || `<div class="tag"><strong>Plateau de ${laMachine()}</strong><div class="dims">${esc(bedText())} · zone utile en pointillés${S.layout.placed.length ? ' · touchez une pièce pour la sélectionner' : ''}</div></div>`;
     }
@@ -1279,6 +1299,7 @@
     S.layout = computeLayout(S.basket);
     let cleared = false;
     if (S.layout.failed.length) { S.basket = new Map(); S.layout = { placed: [], failed: [] }; cleared = true; }
+    for (const g of Object.keys(S.variant)) { const vm = MODELS.get(S.variant[g]); if (!vm || !fitsAlone(vm)) delete S.variant[g]; }
     S.preview = null; S.sel = null; S.step = 1;
     if (!usbOk()) S.mode = 'sd'; else if (S.mode === 'usb') S.mode = null;
     invalidateSlice();

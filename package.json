@@ -1,7 +1,7 @@
 {
   "name": "kit-impression3d-atelier-dagoma-neva",
   "productName": "Atelier Impression 3D",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Kit bib-e-lots - Atelier Impression 3D : préparer et lancer une impression 3D sur Dagoma Neva, Anycubic Vyper ou Ultimaker S7, sans connaître le slicing.",
   "author": "biblio.gironde",
   "homepage": "https://github.com/biblioGironde/Kit-Impression3D-Atelier-Dagoma-Neva",

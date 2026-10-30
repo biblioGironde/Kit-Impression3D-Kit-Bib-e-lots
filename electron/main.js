@@ -21,7 +21,7 @@ function createWindow() {
     title: 'Kit bib-e-lots - Atelier Impression 3D',
     backgroundColor: '#ECEFF3',
     icon: path.join(ROOT, 'build', 'icon.png'),
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, plugins: true }
   });
 
   const ses = win.webContents.session;
@@ -47,6 +47,12 @@ function createWindow() {
 
   // Liens externes (crédits des modèles) : navigateur du système
   win.webContents.setWindowOpenHandler(({ url }) => {
+    // Catalogue photo (PDF) : fenêtre interne avec le lecteur PDF de Chromium
+    if (url.startsWith('app://') && /\.pdf$/i.test(url)) {
+      return { action: 'allow', overrideBrowserWindowOptions: {
+        width: 1000, height: 860, title: 'Photos des objets', autoHideMenuBar: true,
+        webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, plugins: true } } };
+    }
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });

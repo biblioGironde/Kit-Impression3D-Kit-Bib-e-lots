@@ -136,11 +136,11 @@ Les durées sont estimées à partir des vitesses programmées. L'écart réel e
 
 ## Catégorie « Objets en Bib »
 
-27 objets pour la bibliothèque (présentoirs, serre-livres, rehausseurs, étagères, rangement mangas, signalétique), soit 61 fichiers STL dans `modeles/objets-en-bib/`.
+26 objets pour la bibliothèque (présentoirs, serre-livres, rehausseurs, étagères, rangement mangas, signalétique), soit 59 fichiers STL dans `modeles/objets-en-bib/`.
 Beaucoup existent en plusieurs tailles ou pièces : on les choisit sur la fiche du modèle.
 
 **Le catalogue s'adapte à l'imprimante choisie** : les objets et les tailles qui ne tiennent pas sur son plateau sont masqués, avec une phrase qui indique combien le sont.
-Sur la Neva (Ø 180 mm), 16 objets sont visibles ; sur la Vyper et la S7, les 27.
+Sur la Neva (Ø 180 mm), 15 objets sont visibles (dont 3 dans certaines tailles seulement) ; sur la Vyper et la S7, les 26.
 
 Tous sont sous licence Creative Commons. L'auteur, la licence et le lien source s'affichent sur chaque fiche ; le détail est dans `modeles/objets-en-bib/CREDITS.md`.
 Non intégrés :

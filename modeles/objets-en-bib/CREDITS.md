@@ -12,7 +12,6 @@ Les crédits s'affichent aussi sur la fiche de chaque modèle dans l'application
 | Présentoir à pincer sur l'étagère | shelf-pinching-stand | allm1l3s | CC BY-SA | https://www.thingiverse.com/thing:6484069 |
 | Serre-livre invisible | invisible-bookend-a/b | Joshs | CC BY-NC-SA | https://makerworld.com/fr/models/589106 |
 | Serre-livre discret | invisible-bookend-446245(-miroir) | ateldsign | CC BY-SA | https://www.printables.com/model/446245 |
-| Serre-livre chat | cat-bookend-short, cat-bookend-tall | Bugsy515 | CC BY | https://www.printables.com/model/136174 |
 | Aligneur de livres en rayon | book-shelf-tidy | James Holmes | CC BY-NC-SA | https://makerworld.com/fr/models/411207 |
 | Support pour un livre | one-book-shelf-2/3/4/5 | miLAB_IDC | CC BY | https://www.thingiverse.com/thing:3464374 |
 | Étagère invisible (compact) | floating-shelf-1012183 | RoamieTheHomie3D | CC BY-SA | https://www.printables.com/model/1012183 |

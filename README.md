@@ -170,3 +170,9 @@ Le workflow GitHub Actions construit macOS, Windows et Linux et crée la release
 | `vendor/` | three.js r128 (licence MIT) et Clipper 6.4.2 (licence Boost) |
 | `electron/` | application de bureau |
 | `.github/workflows/` | construction des releases |
+
+## Licences
+
+- **Code** : © Département de la Gironde — biblio.gironde, sous licence [GNU Affero General Public License v3.0](LICENSE) ou ultérieure (AGPL-3.0-or-later). Vous pouvez le réutiliser et le modifier ; toute version modifiée, redistribuée ou mise en ligne, doit être publiée sous la même licence, avec son code source.
+- **Modèles STL** (`modeles/`) : chaque modèle garde la licence Creative Commons choisie par son auteur (CC BY, CC BY-SA, CC BY-NC ou CC BY-NC-SA). L'auteur, la licence et la source sont indiqués sur chaque fiche et dans `modeles/objets-en-bib/CREDITS.md`. Les modèles NC ne peuvent pas être utilisés à des fins commerciales.
+- Bibliothèques intégrées (`vendor/`) : three.js r128 (MIT), Clipper 6.4.2 (Boost Software License).
